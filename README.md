@@ -75,6 +75,14 @@ The iden3 State contract is deployed using hardhat. It depends on a Verifier con
 
 Go to the [issuer/upload-claims](./issuer/upload-claims/) folder.
 
+Set the environment variable `KALEIDO_NODE_URL` to the full RPC URL of a Kaleido node, including the basic auth credentials. For example:
+
+```
+export KALEIDO_NODE_URL=https://username:password@u0nc4noce4-u0c5qcrhgs-rpc.us0-aws.kaleido.io
+```
+
+> You can also use the Polygon Mumbai test network as the target, with `--network mumbai`. Set the environment variables `MUMBAI_NODE_URL` and `MUMBAI_PRIV_KEY` accordingly. If you use this option, there's no need to deploy the smart contract. You can use the contract that's already been deployed to Mumbai.
+
 ```
 npx hardhat run scripts/deploy.js --network kaleido
 deploying verifier
