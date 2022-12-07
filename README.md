@@ -84,7 +84,7 @@ export KALEIDO_NODE_URL=https://username:password@u0nc4noce4-u0c5qcrhgs-rpc.us0-
 > You can also use the Polygon Mumbai test network as the target, with `--network mumbai`. Set the environment variables `MUMBAI_NODE_URL` and `MUMBAI_PRIV_KEY` accordingly. If you use this option, there's no need to deploy the smart contract. You can use the contract that's already been deployed to Mumbai.
 
 ```
-npx hardhat run scripts/deploy.js --network kaleido
+$ npx hardhat run scripts/deploy.js --network kaleido
 deploying verifier
 deploying state
 Verifier contract deployed to 0xf7933EdC82Face032402dBC197280045B327F4ee from 0x6b2807d1074ae6E1ab022E1bdb7C0C8C1Eff1BDF
