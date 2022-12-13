@@ -23,7 +23,7 @@ const fs = require('fs');
 const path = require('path');
 
 const pathOutputJson = path.join(os.homedir(), './iden3_deploy_output.json');
-const zkinputJson = path.join(os.homedir(), './iden3_input.json');
+const zkinputJson = path.join(os.homedir(), './iden3_input_holder.json');
 
 const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
