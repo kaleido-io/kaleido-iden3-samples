@@ -3,6 +3,8 @@ const os = require('os');
 const path = require('path');
 
 const { generateWitness } = require('./snark/generate_witness');
+const { prove } = require('./snark/prove');
+const { verify } = require('./snark/verify');
 
 const ISSUER_INPUT_FILE = path.join(os.homedir(), 'iden3_input_issuer.json');
 const HOLDER_INPUT_FILE = path.join(os.homedir(), 'iden3_input_holder.json');
@@ -80,7 +82,7 @@ async function getChallengeInputs() {
   };
 }
 
-async function prove() {
+async function generateProof() {
   const issuerInputs = await getIssuerInputs();
   const holderInputs = await getHolderInputs();
   const claimInputs = await getClaimInputs();
@@ -92,7 +94,7 @@ async function prove() {
     ...claimInputs,
     ...challengeInputs,
     slotIndex: 2, // index of slot A
-    operator: '1',
+    operator: '1', // the "EQUAL" operator
     value: [
       '25',
       '0',
@@ -159,13 +161,15 @@ async function prove() {
       '0',
       '0',
     ],
-    timestamp: '1642074362',
+    timestamp: Math.floor(Date.now() / 1000),
   };
 
   await generateWitness(inputs);
+  const { proof, publicSignals } = await prove();
+  await verify(proof, publicSignals);
 }
 
-prove()
+generateProof()
   .then(() => {
     console.log('Done!');
   })
