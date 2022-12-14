@@ -149,6 +149,7 @@ func main() {
 	age := big.NewInt(25)
 	ageNonce := revNonce + 1
 	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(age, nil), core.WithRevocationNonce(ageNonce))
+	// kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Lionel Messi"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
 	encoded, _ := json.Marshal(ageClaim)
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
 
@@ -158,44 +159,6 @@ func main() {
 	claimTree.Add(ctx, ageHashIndex, ageHashValue)
 
 	persistInputsForAtomicQuerySig(ctx, ageClaim, ageNonce, claimTree, revocationTree, rootsTree, privKey, id, genesisTreeState, authMTProof, authClaim, authNonRevMTProof)
-
-	// issue the country claim
-	fmt.Println("Issue the KYC country claim")
-	h = keccak256.Hash(schemaBytes, []byte("KYCCountryOfResidenceCredential"))
-	copy(sHash[:], h[len(h)-16:])
-	sHashText, _ = sHash.MarshalText()
-	countrySchemaHash := string(sHashText)
-	fmt.Println("-> Schema hash for 'KYCCountryOfResidenceCredential':", countrySchemaHash)
-
-	kycCountrySchema, _ := core.NewSchemaHashFromHex(countrySchemaHash)
-	countryClaim, _ := core.NewClaim(kycCountrySchema, core.WithIndexDataBytes([]byte("US"), []byte("United States of America")))
-	encoded, _ = json.Marshal(countryClaim)
-	fmt.Printf("-> Issued country claim: %s\n", encoded)
-
-	fmt.Println("-> Add the country claim to the claims tree\n\n")
-	countryHashIndex, countryHashValue, _ := countryClaim.HiHv()
-	claimTree.Add(ctx, countryHashIndex, countryHashValue)
-
-	// issue the full KYC claim
-	fmt.Println("Issue the KYC creds claim")
-	h = keccak256.Hash(schemaBytes, []byte("KYCCredential"))
-	copy(sHash[:], h[len(h)-16:])
-	sHashText, _ = sHash.MarshalText()
-	kycSchemaHash := string(sHashText)
-	fmt.Println("-> Schema hash for 'KYCCredential':", kycSchemaHash)
-
-	kycSchema, _ := core.NewSchemaHashFromHex(kycSchemaHash)
-	kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Ben Chodroff"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
-	if err != nil {
-		fmt.Println("Failed to create claim", err)
-		return
-	}
-	encoded, _ = json.Marshal(kycClaim)
-	fmt.Printf("-> Issued full KYC claim: %s\n", encoded)
-
-	fmt.Println("-> Add the KYC creds claim to the claims tree\n\n")
-	kycHashIndex, kycHashValue, _ := kycClaim.HiHv()
-	claimTree.Add(ctx, kycHashIndex, kycHashValue)
 
 	// construct the new identity state
 	fmt.Println("Calculate the new state\n")
