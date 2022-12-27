@@ -102,16 +102,24 @@ func IssueClaim() {
 	ageHashIndex, ageHashValue, _ := ageClaim.HiHv()
 	claimsTree.Add(ctx, ageHashIndex, ageHashValue)
 
+	// Generate a merkle proof that the issuer's auth claim is not revoked
+	// The merkle proof for the issuer auth claim used in generating the zkp seems to be based on the genesis state,
+	// rather than the latest issuer state.
+	issuerGenesisState, err := loadGenesisState(*issuerNameStr)
+	assertNoError(err)
+
+	// If it's supposed to be based on the latest claims and revocations trees, use the following section instead
+	// Begin saved section
 	// from the recovered private key, we can derive the public key and the auth claim
-	pubKey := privKey.Public()
-	authClaimRevNonce := uint64(1)
-	authSchemaHash, _ := getAuthClaimSchemaHash()
+	// pubKey := privKey.Public()
+	// authClaimRevNonce := uint64(1)
+	// authSchemaHash, _ := getAuthClaimSchemaHash()
 	// An auth claim includes the X and Y curve coordinates of the public key, along with the revocation nonce
-	authClaim, _ := core.NewClaim(authSchemaHash, core.WithIndexDataInts(pubKey.X, pubKey.Y), core.WithRevocationNonce(authClaimRevNonce))
-	hIndex, _ := authClaim.HIndex()
-	// generate a merkle proof that the issuer's auth claim is not revoked, based on the latest claims and revocations trees
-	authMTProof, _, _ := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
-	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaimRevNonce)), revocationsTree.Root())
+	// authClaim, _ := core.NewClaim(authSchemaHash, core.WithIndexDataInts(pubKey.X, pubKey.Y), core.WithRevocationNonce(authClaimRevNonce))
+	// hIndex, _ := authClaim.HIndex()
+	// authMTProof, _, _ := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
+	// authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaimRevNonce)), revocationsTree.Root())
+	// End of saved section
 
 	issuerState, _ := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
 	issuerTreeState := circuits.TreeState{
@@ -121,29 +129,12 @@ func IssueClaim() {
 		RootOfRoots:    rootsTree.Root(),
 	}
 
-	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerTreeState, authClaim, authMTProof, authNonRevMTProof)
+	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerTreeState, issuerGenesisState)
 }
 
-func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, genesisTreeState circuits.TreeState, issuerAuthClaim *core.Claim, issuerAuthMTProof *merkletree.Proof, issuerAuthNonRevMTProof *merkletree.Proof) {
+func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, genesisTreeState circuits.TreeState, issuerGenesisState *issuerState) {
 	// persists the input for the validity of the issuer identity against the latest state tree
-	state, _ := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
-	key, value, noAux := getNodeAuxValue(issuerAuthNonRevMTProof.NodeAux)
 	a := circuits.AtomicQuerySigInputs{}
-	iState := issuerState{
-		AuthClaim:               *issuerAuthClaim,
-		AuthClaimMtp:            circuits.PrepareSiblingsStr(issuerAuthMTProof.AllSiblings(), a.GetMTLevel()),
-		AuthClaimNonRevMtp:      circuits.PrepareSiblingsStr(issuerAuthNonRevMTProof.AllSiblings(), a.GetMTLevel()),
-		AuthClaimMtpBytes:       issuerAuthMTProof.Bytes(),
-		AuthClaimNonRevMtpBytes: issuerAuthNonRevMTProof.Bytes(),
-		AuthClaimNonRevMtpAuxHi: key,
-		AuthClaimNonRevMtpAuxHv: value,
-		AuthClaimNonRevMtpNoAux: noAux,
-		UserID:                  issuerId.BigInt().String(),
-		IDState:                 state,
-		ClaimsTreeRoot:          claimsTree.Root(),
-		RevTreeRoot:             revocationsTree.Root(),
-		RootsTreeRoot:           rootsTree.Root(),
-	}
 
 	// persists additional inputs used for generating zk proofs by the holder
 	// these are candidates for sending to the holder wallet
@@ -164,12 +155,22 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	}
 	commonHash, _ := merkletree.HashElems(hashIndex, hashValue)
 	claimSignature := privKey.SignPoseidon(commonHash.BigInt())
+	issuerAuthMTProof, err := merkletree.NewProofFromBytes(issuerGenesisState.AuthClaimMtpBytes)
+	if err != nil {
+		fmt.Printf("Failed to recover issuer auth claim proof from saved bytes: %s\n", err)
+		os.Exit(1)
+	}
+	issuerAuthNonRevMTProof, err := merkletree.NewProofFromBytes(issuerGenesisState.AuthClaimNonRevMtpBytes)
+	if err != nil {
+		fmt.Printf("Failed to recover issuer auth claim non rev proof from saved bytes: %s\n", err)
+		os.Exit(1)
+	}
 	claimIssuerSignature := circuits.BJJSignatureProof{
 		IssuerID:           issuerId,
 		IssuerTreeState:    genesisTreeState,
 		IssuerAuthClaimMTP: issuerAuthMTProof,
 		Signature:          claimSignature,
-		IssuerAuthClaim:    issuerAuthClaim,
+		IssuerAuthClaim:    &issuerGenesisState.AuthClaim,
 		IssuerAuthNonRevProof: circuits.ClaimNonRevStatus{
 			TreeState: genesisTreeState,
 			Proof:     issuerAuthNonRevMTProof,
@@ -186,9 +187,9 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 		IssuerID:       issuerId,
 		SignatureProof: claimIssuerSignature,
 	}
-	key, value, noAux = getNodeAuxValue(proofNotRevoke.NodeAux)
+	key, value, noAux := getNodeAuxValue(proofNotRevoke.NodeAux)
 	inputs := ClaimInputs{
-		IssuerAuthState:            &iState,
+		IssuerAuthState:            issuerGenesisState,
 		IssuerClaim:                inputsUserClaim.Claim,
 		IssuerClaimMtp:             circuits.PrepareSiblingsStr(ageClaimMTProof.AllSiblings(), a.GetMTLevel()),
 		IssuerClaimMtpBytes:        ageClaimMTProof.Bytes(),

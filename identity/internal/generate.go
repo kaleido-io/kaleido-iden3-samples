@@ -48,9 +48,11 @@ func GenerateIdentity() {
 	fmt.Printf("-> Public key: %s\n\n", pubKey)
 
 	ctx := context.Background()
-	db, err := initMerkleTreeDB(*nameStr)
+	claimsDB, revsDB, rootsDB, err := initMerkleTreeDBs(*nameStr)
 	assertNoError(err)
-	storage := sqlstorage.NewSqlStorage(&sqlDB{db: db}, 1)
+	claimsStorage := sqlstorage.NewSqlStorage(&sqlDB{db: claimsDB}, 1)
+	revsStorage := sqlstorage.NewSqlStorage(&sqlDB{db: revsDB}, 1)
+	rootsStorage := sqlstorage.NewSqlStorage(&sqlDB{db: rootsDB}, 1)
 
 	// An iden3 state is made up of 3 parts:
 	// - a claims tree. This is a sparse merkle tree where each claim is uniquely identified with a key
@@ -63,13 +65,13 @@ func GenerateIdentity() {
 	// - add the claim tree root at this point in time to the roots tree
 	fmt.Println("Generating genesis state for the identity")
 	fmt.Println("-> Create the empty claims merkle tree")
-	claimsTree, err := merkletree.NewMerkleTree(ctx, storage, 32)
+	claimsTree, err := merkletree.NewMerkleTree(ctx, claimsStorage, 32)
 	assertNoError(err)
 	fmt.Println("-> Create the empty revocations merkle tree")
-	revocationsTree, err := merkletree.NewMerkleTree(ctx, storage, 32)
+	revocationsTree, err := merkletree.NewMerkleTree(ctx, revsStorage, 32)
 	assertNoError(err)
 	fmt.Println("-> Create the empty roots merkle tree")
-	rootsTree, err := merkletree.NewMerkleTree(ctx, storage, 32)
+	rootsTree, err := merkletree.NewMerkleTree(ctx, rootsStorage, 32)
 	assertNoError(err)
 
 	// A schema is registered using its hash. The hash is used to coordinate the validation by offline processes.

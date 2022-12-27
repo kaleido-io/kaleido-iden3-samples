@@ -46,9 +46,25 @@ CREATE TABLE IF NOT EXISTS mt_roots (
 	deleted_at BIGINT
 );`
 
-func initMerkleTreeDB(name string) (*sql.DB, error) {
+func initMerkleTreeDBs(name string) (*sql.DB, *sql.DB, *sql.DB, error) {
+	claimsDB, err := newMerkleDB(name, "claims")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	revsDB, err := newMerkleDB(name, "revocations")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	rootsDB, err := newMerkleDB(name, "roots")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return claimsDB, revsDB, rootsDB, nil
+}
+
+func newMerkleDB(id, tree string) (*sql.DB, error) {
 	homedir, _ := os.UserHomeDir()
-	dbPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s.db", name))
+	dbPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/%s.db", id, tree))
 	_ = os.MkdirAll(filepath.Dir(dbPath), os.ModePerm)
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {

@@ -195,27 +195,29 @@ func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkle
 }
 
 func loadState(ctx context.Context, issuerNameStr *string) (*merkletree.MerkleTree, *merkletree.MerkleTree, *merkletree.MerkleTree, error) {
-	db, err := initMerkleTreeDB(*issuerNameStr)
+	claimsDB, revsDB, rootsDB, err := initMerkleTreeDBs(*issuerNameStr)
 	if err != nil {
 		fmt.Println(err)
 		return nil, nil, nil, err
 	}
-	storage := sqlstorage.NewSqlStorage(&sqlDB{db: db}, 1)
+	claimsStorage := sqlstorage.NewSqlStorage(&sqlDB{db: claimsDB}, 1)
+	revsStorage := sqlstorage.NewSqlStorage(&sqlDB{db: revsDB}, 1)
+	rootsStorage := sqlstorage.NewSqlStorage(&sqlDB{db: rootsDB}, 1)
 
 	fmt.Println("Load the issuer claims merkle tree")
-	claimsTree, err := merkletree.NewMerkleTree(ctx, storage, 32)
+	claimsTree, err := merkletree.NewMerkleTree(ctx, claimsStorage, 32)
 	if err != nil {
 		fmt.Println(err)
 		return nil, nil, nil, err
 	}
 	fmt.Println("Load the revocations merkle tree")
-	revocationsTree, err := merkletree.NewMerkleTree(ctx, storage, 32)
+	revocationsTree, err := merkletree.NewMerkleTree(ctx, revsStorage, 32)
 	if err != nil {
 		fmt.Println(err)
 		return nil, nil, nil, err
 	}
 	fmt.Printf("Load the roots merkle tree\n")
-	rootsTree, err := merkletree.NewMerkleTree(ctx, storage, 32)
+	rootsTree, err := merkletree.NewMerkleTree(ctx, rootsStorage, 32)
 	if err != nil {
 		fmt.Println(err)
 		return nil, nil, nil, err
