@@ -162,6 +162,8 @@ async function prove() {
     timestamp: '1642074362',
   };
 
+  console.log(inputs);
+
   await generateWitness(inputs);
 }
 
