@@ -22,8 +22,11 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
-const pathOutputJson = path.join(os.homedir(), './iden3_deploy_output.json');
-const zkinputJson = path.join(os.homedir(), './iden3_input_holder.json');
+const identityName = process.env.IDEN3_NAME;
+
+const pathOutputJson = path.join(os.homedir(), `iden3/deploy_output.json`);
+const genesisJson = path.join(os.homedir(), `iden3/${identityName}/genesis_state.json`);
+const zkinputJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_inputs.json`);
 
 const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
@@ -45,14 +48,21 @@ async function main() {
   const contract = await ethers.getContractAt('State', stateContractAddress);
 
   // gather the inputs for generating the proof
-  const content = JSON.parse(fs.readFileSync(zkinputJson));
+  let inputs = JSON.parse(fs.readFileSync(genesisJson));
+  inputs = {
+    ...inputs,
+    ...JSON.parse(fs.readFileSync(zkinputJson)),
+  };
+  delete inputs.authClaimMtpBytes;
+  delete inputs.authClaimNonRevMtpBytes;
+  console.log(inputs);
 
-  const issuerId = content.userID;
-  const oldState = content.oldUserState;
-  const newState = content.newUserState;
-  const isOldStateGenesis = content.isOldStateGenesis;
+  const issuerId = inputs.userID;
+  const oldState = inputs.oldUserState;
+  const newState = inputs.newUserState;
+  const isOldStateGenesis = inputs.isOldStateGenesis;
 
-  await generateWitness(content);
+  await generateWitness(inputs);
   const { proof, publicSignals } = await prove();
   await verify(proof, publicSignals);
 

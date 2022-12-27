@@ -1,23 +1,26 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+const argv = yargs(hideBin(process.argv)).argv;
 
 const { generateWitness } = require('./snark/generate_witness');
+const { prove } = require('./snark/prove');
+const { verify } = require('./snark/verify');
 
-const ISSUER_INPUT_FILE = path.join(os.homedir(), 'iden3_input_issuer.json');
-const HOLDER_INPUT_FILE = path.join(os.homedir(), 'iden3_input_holder.json');
-const HOLDER_CLAIM_INPUT_FILE = path.join(os.homedir(), 'iden3_input_issuer_to_user.json');
-const HOLDER_CHALLENGE_INPUT_FILE = path.join(os.homedir(), 'iden3_input_holder_challenge.json');
+const holderName = process.env.HOLDER;
+
+const ISSUER_GENESIS_STATE_FILE = path.join(os.homedir(), `iden3/${holderName}/issuer_genesis_state.json`);
+const HOLDER_GENESIS_STATE_FILE = path.join(os.homedir(), `iden3/${holderName}/genesis_state.json`);
+const HOLDER_CHALLENGE_FILE = path.join(os.homedir(), `iden3/${holderName}/challenge.json`);
 
 async function getIssuerInputs() {
-  const content = fs.readFileSync(ISSUER_INPUT_FILE);
+  const content = fs.readFileSync(ISSUER_GENESIS_STATE_FILE);
   const inputs = JSON.parse(content);
 
   return {
     issuerID: inputs.userID,
-    issuerClaimSignatureR8x: inputs.signatureR8x,
-    issuerClaimSignatureR8y: inputs.signatureR8y,
-    issuerClaimSignatureS: inputs.signatureS,
     issuerAuthClaim: inputs.authClaim,
     issuerAuthClaimMtp: inputs.authClaimMtp,
     issuerAuthClaimNonRevMtp: inputs.authClaimNonRevMtp,
@@ -31,7 +34,7 @@ async function getIssuerInputs() {
 }
 
 async function getHolderInputs() {
-  const content = fs.readFileSync(HOLDER_INPUT_FILE);
+  const content = fs.readFileSync(HOLDER_GENESIS_STATE_FILE);
   const inputs = JSON.parse(content);
 
   return {
@@ -42,18 +45,34 @@ async function getHolderInputs() {
     userAuthClaimNonRevMtpAuxHv: inputs.authClaimNonRevMtpAuxHv,
     userAuthClaimNonRevMtpNoAux: inputs.authClaimNonRevMtpNoAux,
     userID: inputs.userID,
+    userState: inputs.newUserState,
+    userClaimsTreeRoot: inputs.claimsTreeRoot,
+    userRevTreeRoot: inputs.revTreeRoot,
+    userRootsTreeRoot: inputs.rootsTreeRoot,
   };
 }
 
 async function getClaimInputs() {
-  const content = fs.readFileSync(HOLDER_CLAIM_INPUT_FILE);
+  const claimsDir = path.join(os.homedir(), `iden3/${holderName}/received-claims`);
+  const claimFiles = fs.readdirSync(claimsDir);
+  const content = fs.readFileSync(path.join(claimsDir, claimFiles[0]));
   const inputs = JSON.parse(content);
   return {
+    issuerID: inputs.issuerAuthState.userID,
+    issuerAuthClaim: inputs.issuerAuthState.authClaim,
+    issuerAuthClaimMtp: inputs.issuerAuthState.authClaimMtp,
+    issuerAuthClaimNonRevMtp: inputs.issuerAuthState.authClaimNonRevMtp,
+    issuerAuthClaimNonRevMtpAuxHi: inputs.issuerAuthState.authClaimNonRevMtpAuxHi,
+    issuerAuthClaimNonRevMtpAuxHv: inputs.issuerAuthState.authClaimNonRevMtpAuxHv,
+    issuerAuthClaimNonRevMtpNoAux: inputs.issuerAuthState.authClaimNonRevMtpNoAux,
+    issuerAuthClaimsTreeRoot: inputs.issuerAuthState.claimsTreeRoot,
+    issuerAuthRevTreeRoot: inputs.issuerAuthState.revTreeRoot,
+    issuerAuthRootsTreeRoot: inputs.issuerAuthState.rootsTreeRoot,
     issuerClaim: inputs.issuerClaim,
-    issuerClaimNonRevClaimsTreeRoot: inputs.issuerClaimNonRevClaimsTreeRoot,
-    issuerClaimNonRevRevTreeRoot: inputs.issuerClaimNonRevRevTreeRoot,
-    issuerClaimNonRevRootsTreeRoot: inputs.issuerClaimNonRevRootsTreeRoot,
-    issuerClaimNonRevState: inputs.issuerClaimNonRevState,
+    issuerClaimNonRevClaimsTreeRoot: inputs.issuerState_ClaimsTreeRoot,
+    issuerClaimNonRevRevTreeRoot: inputs.issuerState_RevTreeRoot,
+    issuerClaimNonRevRootsTreeRoot: inputs.issuerState_RootsTreeRoot,
+    issuerClaimNonRevState: inputs.issuerState_State,
     issuerClaimNonRevMtp: inputs.issuerClaimNonRevMtp,
     issuerClaimNonRevMtpAuxHi: inputs.issuerClaimNonRevMtpAuxHi,
     issuerClaimNonRevMtpAuxHv: inputs.issuerClaimNonRevMtpAuxHv,
@@ -66,13 +85,9 @@ async function getClaimInputs() {
 }
 
 async function getChallengeInputs() {
-  const content = fs.readFileSync(HOLDER_CHALLENGE_INPUT_FILE);
+  const content = fs.readFileSync(HOLDER_CHALLENGE_FILE);
   const inputs = JSON.parse(content);
   return {
-    userState: inputs.newUserState,
-    userClaimsTreeRoot: inputs.claimsTreeRoot,
-    userRevTreeRoot: inputs.revTreeRoot,
-    userRootsTreeRoot: inputs.rootsTreeRoot,
     challenge: inputs.challenge,
     challengeSignatureR8x: inputs.challengeSignatureR8x,
     challengeSignatureR8y: inputs.challengeSignatureR8y,
@@ -80,19 +95,19 @@ async function getChallengeInputs() {
   };
 }
 
-async function prove() {
-  const issuerInputs = await getIssuerInputs();
+async function generateProof() {
+  // const issuerInputs = await getIssuerInputs();
   const holderInputs = await getHolderInputs();
   const claimInputs = await getClaimInputs();
   const challengeInputs = await getChallengeInputs();
 
   const inputs = {
-    ...issuerInputs,
+    // ...issuerInputs,
     ...holderInputs,
     ...claimInputs,
     ...challengeInputs,
     slotIndex: 2, // index of slot A
-    operator: '1',
+    operator: '1', // the "EQUAL" operator
     value: [
       '25',
       '0',
@@ -159,15 +174,15 @@ async function prove() {
       '0',
       '0',
     ],
-    timestamp: '1642074362',
+    timestamp: Math.floor(Date.now() / 1000),
   };
-
   console.log(inputs);
-
   await generateWitness(inputs);
+  const { proof, publicSignals } = await prove();
+  await verify(proof, publicSignals);
 }
 
-prove()
+generateProof()
   .then(() => {
     console.log('Done!');
   })

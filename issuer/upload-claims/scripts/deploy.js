@@ -18,7 +18,7 @@ const { ethers, upgrades } = require('hardhat');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
-const pathOutputJson = path.join(os.homedir(), './iden3_deploy_output.json');
+const pathOutputJson = path.join(os.homedir(), './iden3/deploy_output.json');
 
 async function main() {
   const Verifier = await ethers.getContractFactory('Verifier');
@@ -40,6 +40,7 @@ async function main() {
     verifier: verifier.address,
     network: process.env.HARDHAT_NETWORK,
   };
+  fs.mkdirSync(path.dirname(pathOutputJson), { recursive: true });
   fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
 
