@@ -191,6 +191,7 @@ func persistInputsForChallenge(name string, inputs circuits.AtomicQuerySigInputs
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Challenge response inputs written to the file: %s\n", inputsPath)
 	return nil
 }
 
