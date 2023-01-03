@@ -73,7 +73,7 @@ async function main() {
 
   let identityState0 = await contract.getState(issuerId);
   console.log('State before transaction: ', identityState0);
-
+  console.log('Invoking state transaction on chain ...');
   const tx = await contract.transitState(issuerId, oldState, newState, isOldStateGenesis, a, b, c);
   await tx.wait();
   let identityState1 = await contract.getState(issuerId);
