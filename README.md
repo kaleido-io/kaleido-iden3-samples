@@ -42,18 +42,17 @@ Calculate the new state
 ```
 
 For each identity, the program creates the following resources:
-
-- $HOMEDIR/iden3/JohnDoe.db: this is the sqlite DB that stores the merkle tree for the identity
 - $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity, including:
-  - private.key: the private key for the identity (on the babyjubjub curve)
-  - genesis_state.json: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
-  - stateTransition_inputs.json: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities
+  - **private.key**: the private key for the identity (on the babyjubjub curve)
+  - **genesis_state.json**: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
+  - **stateTransition_inputs.json**: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities
+  - **claims/revocations/roots.db**: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.  
 
 Use the `init` subcommand to generate at least two identities, one as the issuer, and one as the holder.
 
-## Publish Identities To the Registry
+## Publish Identity States to a registry
 
-The identity of the issuer should be published to a registry so that verifiers can look up their public keys. A smart contract based registry has been provided and can be deployed using the Hardhat script.
+The identity state of the issuer should be published to a registry so that verifiers can use it to validate claims. A smart contract based registry has been provided and can be deployed using the Hardhat script.
 
 The iden3 `State.sol` contract, and its dependencies, implements an identity registry. An issuer should register its identity state with the contract, by calling the `transitState()` function, which requires a zero knowledge proof of the addition of the auth claim of the issuer to the merkle tree.
 
@@ -89,7 +88,10 @@ We use snarkjs to generate the state transition proof, from the nil state to the
 
 This step uses the output of the golang program as the input to the proof generation. It's based on a [pre-compiled circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/stateTransition.circom) for the state transition.
 
+With the `IDEN3_NAME` set to `JohnDoe`, we tell the program to publish the state of JohnDoe on chain, which will be act as the issuer in the later tutorial.
+
 ```
+$ export IDEN3_NAME=JohnDoe
 $ npx hardhat run scripts/upload-state-transition.js --network kaleido
 {
   authClaim: [
@@ -182,7 +184,8 @@ To mimic the transfer of the claim from the issuer's server to the holder's wall
 For instance, if the issuer's name is `JohnDoe`, and the holder's name is `AliceWonder`:
 
 ```
-cp ~/iden3/JohnDoe/claims/2-117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32.json ~/iden3/AliceWonder/received-claims
+mkdir ~/iden3/AliceWonder/received-claims
+cp ~/iden3/JohnDoe/claims/2-117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32.json ~/iden3/AliceWonder/received-claims/
 ```
 
 ## Holder To Respond To Challenge For A Claim
@@ -190,7 +193,7 @@ cp ~/iden3/JohnDoe/claims/2-117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32.json ~/id
 Now, acting as the holder, we can use the Golang program's `respond-to-challenge` subcommand to generate the necessary inputs for the zero knowledge proof, responding to a challenge by the verifier. In the sample code, the challenge was for a proof that the age claim is equal to `25`.
 
 ```
-g$ go run main.go respond-to-challenge --holder AliceWonder --challenge 12345
+$ go run main.go respond-to-challenge --holder AliceWonder --challenge 12345
 Loading holder state
 Load the issuer claims merkle tree
 Load the revocations merkle tree
