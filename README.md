@@ -42,11 +42,12 @@ Calculate the new state
 ```
 
 For each identity, the program creates the following resources:
+
 - $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity, including:
   - **private.key**: the private key for the identity (on the babyjubjub curve)
   - **genesis_state.json**: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
   - **stateTransition_inputs.json**: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities
-  - **claims/revocations/roots.db**: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.  
+  - **claims/revocations/roots.db**: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.
 
 Use the `init` subcommand to generate at least two identities, one as the issuer, and one as the holder.
 
@@ -188,12 +189,70 @@ mkdir ~/iden3/AliceWonder/received-claims
 cp ~/iden3/JohnDoe/claims/2-117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32.json ~/iden3/AliceWonder/received-claims/
 ```
 
-## Holder To Respond To Challenge For A Claim
+## Verifier To Launch the Claim Challenge Site
 
-Now, acting as the holder, we can use the Golang program's `respond-to-challenge` subcommand to generate the necessary inputs for the zero knowledge proof, responding to a challenge by the verifier. In the sample code, the challenge was for a proof that the age claim is equal to `25`.
+The verifier wants to request the holder to present a proof for a condition that the verifier is interested in. The current communication between the verifier and the holder is conducted via QR code.
+
+The verifier expresses the condition using the [iden3 proof query language](https://docs.iden3.io/protocol/querylanguage/), and then wrap it inside a request object which then gets encoded into a QR code.
+
+The QR code is presented in the verifier's web site, which the holder can scan to obtain the proof request. Based on the query request decoded from the QR code, the holder can then generate the proof accordingly.
+
+To launch the sample verifier's web site, go to the `verifier/server` folder:
 
 ```
-$ go run main.go respond-to-challenge --holder AliceWonder --challenge 12345
+$ npm i
+$ node app.js
+server running on port 8080
+```
+
+Point your browser at the URL `http://localhost:8080`, then click the "Sign In" button to display the QR code which encodes the proof request.
+
+Here's the sample proof request:
+
+```json
+{
+  "id": "7f38a193-0918-4a48-9fac-36adfdb8b542",
+  "thid": "7f38a193-0918-4a48-9fac-36adfdb8b542",
+  "from": "1125GJqgw6YEsKFwj63GY87MMxPL9kwDKxPUiwMLNZ",
+  "typ": "application/iden3comm-plain-json",
+  "type": "https://iden3-communication.io/authorization/1.0/request",
+  "body": {
+    "reason": "test flow",
+    "message": "12345",
+    "callbackUrl": "http://5c8e-208-1-60-238.ngrok.io/api/callback?sessionId=1",
+    "scope": [
+      {
+        "id": 1,
+        "circuit_id": "credentialAtomicQuerySig",
+        "rules": {
+          "query": {
+            "allowedIssuers": ["*"],
+            "schema": {
+              "type": "KYCAgeCredential",
+              "url": "https://github.com/kaleido-io/kaleido-iden3-samples/blob/main/identity/schemas/test.json-ld"
+            },
+            "req": {
+              "birthdate": {
+                "$lt": 20000101
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+## Holder To Respond To Challenge For A Claim
+
+Now, acting as the holder, we can use the Golang program's `respond-to-challenge` subcommand to generate the necessary inputs for the zero knowledge proof, responding to the challenge by the verifier. In the sample code, the challenge was for a proof that the age claim has a `birthdate` attribute with a value less than `20000101`.
+
+Before launching the command, save the QR code image from the web site to a **PNG or JPEG file** (In the real world, the holder would use the wallet app to scan the QR code.)
+
+```
+$ go run main.go respond-to-challenge --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
+Using the challenge &{Message:12345 Scope:{CircuitID:credentialAtomicQuerySig Queries:[{Property:birthdate Operator:2 Value:2.0000101e+07}]}} decoded from the QR Code
 Loading holder state
 Load the issuer claims merkle tree
 Load the revocations merkle tree
@@ -205,14 +264,14 @@ Challenge response inputs written to the file: /Users/jimzhang/iden3/AliceWonder
 ```
 
 `--holder AliceWonder` tells the program to use the private key and the merkletree of the identity `AliceWonder`.
-`--challenge 12345` tells the program to sign the unique challenge nonce `12345`, which is supposed to be a unique nonce as part of the challenge
+`--qrcode <file>` tells the program to decode the proof request from the QR code image file
+`--challenge 12345` tells the program to sign the unique challenge nonce `12345`, which is an alternative to using the QR code
 
 ## Generate the Zero Knowledge Proof for the Claim Challenge
 
 We use snark.js again to generate the proof, using the inputs that have been generated in the above step.
 
 ```
-export HOLDER=AliceWonder
 cd holder/wallet
-node index.js
+node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
 ```

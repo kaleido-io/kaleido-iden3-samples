@@ -11,7 +11,8 @@ const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
 const { verify } = require('./snark/verify');
 
-const holderName = process.env.HOLDER;
+const holderName = argv['holder'];
+const qrFile = argv['qrcode'];
 
 const HOLDER_GENESIS_STATE_FILE = path.join(os.homedir(), `iden3/${holderName}/genesis_state.json`);
 const HOLDER_CHALLENGE_FILE = path.join(os.homedir(), `iden3/${holderName}/challenge.json`);
@@ -22,6 +23,15 @@ const LESS = '2'; // = - less-than sign
 const GREATER = '3'; // = - greter-than sign
 const IN = '4'; // = - in
 const NOTIN = '5'; // = - notin
+
+function checkArgs() {
+  if (!holderName) {
+    throw new Error('Must provide the name of the holder with --holder');
+  }
+  if (!qrFile) {
+    throw new Error('Must provide the file path of the QR image with --qrcode');
+  }
+}
 
 async function getHolderInputs() {
   const content = fs.readFileSync(HOLDER_GENESIS_STATE_FILE);
@@ -86,10 +96,6 @@ async function getChallengeInputs() {
 }
 
 async function scanQR() {
-  const qrFile = argv['challenge-qr'];
-  if (!qrFile) {
-    throw new Error('Must provide the file path of the QR image with --challenge-qr');
-  }
   var buffer = fs.readFileSync(qrFile);
   const image = await Jimp.read(buffer);
   const result = jsQR(new Uint8ClampedArray(image.bitmap.data), image.bitmap.width, image.bitmap.height);
@@ -200,18 +206,27 @@ function translateOperator(op) {
       return LESS;
     case '$gt':
       return GREATER;
+    case '$in':
+      return IN;
+    case '$nin':
+      return NOTIN;
     default:
       return NOOP;
   }
 }
 
-scanQR()
-  .then((result) => {
-    generateProof(result);
-  })
-  .then(() => {
-    console.log('Done!');
-  })
-  .catch((err) => {
-    console.error(err);
-  });
+try {
+  checkArgs();
+  scanQR()
+    .then((result) => {
+      generateProof(result);
+    })
+    .then(() => {
+      console.log('Done!');
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+} catch (err) {
+  console.error(err);
+}
