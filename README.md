@@ -46,8 +46,9 @@ For each identity, the program creates the following resources:
 - $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity, including:
   - **private.key**: the private key for the identity (on the babyjubjub curve)
   - **genesis_state.json**: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
-  - **stateTransition_inputs.json**: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities
   - **claims/revocations/roots.db**: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.
+  - **stateTransition_inputs.json**: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities. Input file for [Proof Generation and Update OnChain State](#proof-generation-and-update-onchain-state)
+  - **treeStates.json**: this json file contains an old state (genesis state OR the state recorded on chain) and a new state (the current state calculated locally to be recorded on chain)
 - $HOMEDIR/iden3/identities.json: this file contains a lookup table of identity name and IDs. It gets updated whenever a new identify is created.
 
 Use the `init` subcommand to generate at least two identities, one as the issuer, and one as the holder.
@@ -89,6 +90,13 @@ Next we want to publish the transition from the nil state to the genesis state t
 We use snarkjs to generate the state transition proof, from the nil state to the genesis state, and upload the states with the proof to the smart contract in order to update the onchain state for the identity.
 
 This step uses the output of the golang program as the input to the proof generation. It's based on a [pre-compiled circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/stateTransition.circom) for the state transition.
+
+For successful runs, the program may create new resources in the identify folder. Using JohnDoe as example:
+
+- $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity:
+  - **stateTransition_inputs_previous.json**: if a state transition is successfully applied, the input file `stateTransition_inputs.json` will be renamed to `stateTransition_inputs_previous.json`
+  - **treeStates_previous.json**: if a state transition is successfully applied, the tree state record file `treeStates.json` will be renamed to `treeStates_previous.json`
+  - **archived_transitions**: when more than 2 state transition have been executed, all historical transition input and tree states files will be archived into this folder with a timestamp prefix for record purpose.
 
 With the `IDEN3_NAME` set to `JohnDoe`, we tell the program to publish the state of JohnDoe on chain, which will be act as the issuer in the later tutorial.
 
@@ -141,6 +149,7 @@ Generated proof written to file /Users/jimzhang/iden3_proof.json
 Generated public signals written to file /Users/jimzhang/iden3_public.json
 Successfully generated proof!
 State before transaction:  BigNumber { value: "0" }
+Invoking state transaction on chain ...
 State after transaction:  BigNumber { value: "4415121770339690351530166661455105854178222280927373194615248123084196097920" }
 ```
 
