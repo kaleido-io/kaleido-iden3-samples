@@ -44,7 +44,6 @@ function archiveOldFiles () {
     fs.mkdirSync(archiveFolder)
   } 
   if (fs.existsSync(zkpreviousJson)) {
-
     fs.renameSync(zkpreviousJson, path.join(archiveFolder, `${timestampString}-stateTransition_inputs_previous.json`));
   }
   if (fs.existsSync(treeStatesPreviousJson)) {

@@ -82,7 +82,7 @@ func IssueClaim() {
 	var issuerRecordedTreeState circuits.TreeState
 	// is there is already a pending state change, copy the old state from there
 	// so that we can batch claim additions together
-	_, err = loadPendingState(*issuerNameStr)
+	pendingIssuerState, err := loadPendingState(*issuerNameStr)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// there is no pending state, it's fine to calculate the old state from the merkle tree roots
@@ -97,15 +97,12 @@ func IssueClaim() {
 			assertNoError(err)
 		}
 	} else {
-		fmt.Printf("There is already a pending state transition for issuer: %s, please use the upload-state-transition.js script to submit the state transition on chain before adding another claim.\n", *issuerNameStr)
-		os.Exit(1)
-		// TODO: fix the logic to allow batching of claims
-		// issuerRecordedTreeState = circuits.TreeState{
-		// 	State:          pendingIssuerState.OldIdState,
-		// 	ClaimsRoot:     pendingIssuerState.ClaimsTreeRoot,
-		// 	RevocationRoot: pendingIssuerState.RevTreeRoot,
-		// 	RootOfRoots:    pendingIssuerState.RootsTreeRoot,
-		// }
+		issuerRecordedTreeState = circuits.TreeState{
+			State:          pendingIssuerState.OldIdState,
+			ClaimsRoot:     pendingIssuerState.ClaimsTreeRoot,
+			RevocationRoot: pendingIssuerState.RevTreeRoot,
+			RootOfRoots:    pendingIssuerState.RootsTreeRoot,
+		}
 	}
 
 	fmt.Println("Issue the KYC age claim")
