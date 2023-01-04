@@ -273,5 +273,6 @@ We use snark.js again to generate the proof, using the inputs that have been gen
 
 ```
 cd holder/wallet
+npm i
 node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
 ```

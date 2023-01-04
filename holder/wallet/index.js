@@ -219,10 +219,11 @@ try {
   checkArgs();
   scanQR()
     .then((result) => {
-      generateProof(result);
+      return generateProof(result);
     })
     .then(() => {
       console.log('Done!');
+      process.exit(0);
     })
     .catch((err) => {
       console.error(err);
