@@ -19,8 +19,12 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -30,7 +34,32 @@ import (
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	merkletree "github.com/iden3/go-merkletree-sql"
+	"github.com/makiuchi-d/gozxing"
+	"github.com/makiuchi-d/gozxing/qrcode"
 )
+
+const NOOP = "0"    // = - no operation, skip query verification if set
+const EQUALS = "1"  // = - equals sign
+const LESS = "2"    // = - less-than sign
+const GREATER = "3" // = - greter-than sign
+const IN = "4"      // = - in
+const NOTIN = "5"   // = - notin
+
+type Challenge struct {
+	Message string `json:"message"`
+	Scope   `json:"scope"`
+}
+
+type Scope struct {
+	CircuitID string  `json:"circuit_id"`
+	Queries   []Query `json:"queries"`
+}
+
+type Query struct {
+	Property string      `json:"property"`
+	Operator string      `json:"operator"`
+	Value    interface{} `json:"value"`
+}
 
 // Called against the holder identity to respond to the proof challenge
 // and generates a zero knowledge proof based on the issued claim
@@ -38,14 +67,27 @@ func RespondToChallenge() {
 	resCmd := flag.NewFlagSet("respond-to-challenge", flag.ExitOnError)
 	holderNameStr := resCmd.String("holder", "", "name of the holder identity")
 	challengeStr := resCmd.String("challenge", "", "challenge string")
+	qrImgStr := resCmd.String("qrcode", "", "Image file for the challenge QR code")
 	resCmd.Parse(os.Args[2:])
 	if *holderNameStr == "" {
 		fmt.Println("Must specify the name of the holder with a --holder parameter")
 		os.Exit(1)
 	}
-	if *challengeStr == "" {
-		fmt.Println("Must specify a challenge, a random number, with a --challenge parameter")
+	if *challengeStr == "" && *qrImgStr == "" {
+		fmt.Println("Must specify a challenge with a --challenge parameter, or a QR image file, with the --qrcode parameter")
 		os.Exit(1)
+	}
+
+	challenge := &big.Int{}
+	if *qrImgStr != "" {
+		challengeObj, err := decodeQRImage(*qrImgStr)
+		assertNoError(err)
+		cobj, err := decodeChallenge(challengeObj)
+		assertNoError(err)
+		fmt.Printf("Using the challenge %+v decoded from the QR Code\n", cobj)
+		challenge.SetString(cobj.Message, 10)
+	} else {
+		challenge.SetString(*challengeStr, 10)
 	}
 
 	//
@@ -98,9 +140,6 @@ func RespondToChallenge() {
 			Proof:     holderAuthMTProof,
 		},
 	}
-	challenge := &big.Int{}
-	challenge.SetString(*challengeStr, 10)
-	signature := privKey.SignPoseidon(challenge)
 
 	targetClaim, err := loadClaim(*holderNameStr)
 	assertNoError(err)
@@ -172,7 +211,7 @@ func RespondToChallenge() {
 		ID:               holderId,
 		AuthClaim:        inputsAuthClaim,
 		Challenge:        challenge,
-		Signature:        signature,
+		Signature:        privKey.SignPoseidon(challenge),
 		CurrentTimeStamp: time.Now().Unix(),
 		Claim:            inputsUserClaim,
 	}
@@ -221,4 +260,120 @@ func loadClaim(name string) (*ClaimInputs, error) {
 		return nil, err
 	}
 	return &claim, err
+}
+
+func decodeQRImage(imageFile string) (map[string]interface{}, error) {
+	// open and decode image file
+	file, err := os.Open(imageFile)
+	if err != nil {
+		fmt.Println("Failed to open QR image file.", err)
+		return nil, err
+	}
+	img, _, err := image.Decode(file)
+	if err != nil {
+		fmt.Println("Failed to decode image file.", err)
+		return nil, err
+	}
+
+	// prepare BinaryBitmap
+	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
+	if err != nil {
+		fmt.Println("Failed to convert to bitmap.", err)
+		return nil, err
+	}
+
+	// decode image
+	qrReader := qrcode.NewQRCodeReader()
+	result, err := qrReader.Decode(bmp, nil)
+	if err != nil {
+		fmt.Println("Failed to decode QR image.", err)
+		return nil, err
+	}
+
+	var obj map[string]interface{}
+	err = json.Unmarshal([]byte(result.GetText()), &obj)
+	if err != nil {
+		fmt.Println("Failed to decode QR content bytes.", err)
+		return nil, err
+	}
+
+	return obj, nil
+}
+
+func decodeChallenge(challengeObj map[string]interface{}) (*Challenge, error) {
+	challenge := &Challenge{}
+
+	body := challengeObj["body"]
+	if body == nil {
+		return nil, errors.New(("invalid challenge object, missing the 'body' object"))
+	} else {
+		bodyObj, ok := body.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("invalid challenge object, the 'body' property must be an object")
+		}
+
+		cstr := bodyObj["message"]
+		if cstr == nil {
+			return nil, errors.New("invalid challenge object, missing the 'message' string property in the 'body' object")
+		}
+		challenge.Message = cstr.(string)
+
+		scope := bodyObj["scope"]
+		if scope == nil {
+			return nil, errors.New("invalid challenge object, missing the 'scope' object")
+		}
+		scopeArr := scope.([]interface{})
+		scopeObj := scopeArr[0]
+		challenge.Scope = Scope{}
+		circuitId := scopeObj.(map[string]interface{})["circuit_id"]
+		if circuitId == nil {
+			return nil, errors.New("invalid challenge object, missing the 'circuit_id' property in the 'scope' object")
+		} else {
+			if circuitId.(string) != "credentialAtomicQuerySig" {
+				return nil, errors.New("invalid challenge object, only supported circuit so far is 'credentialAtomicQuerySig'")
+			}
+		}
+		challenge.Scope.CircuitID = circuitId.(string)
+		rules := scopeObj.(map[string]interface{})["rules"]
+		if rules == nil {
+			return nil, errors.New("invalid challenge object, missing the 'rules' property in the 'scope' object")
+		}
+		query := rules.(map[string]interface{})["query"]
+		if query == nil {
+			return nil, errors.New("invalid challenge object, missing the 'query' property in the 'rules' object")
+		}
+		req := query.(map[string]interface{})["req"]
+		if req == nil {
+			return nil, errors.New("invalid challenge object, missing the 'req' property in the 'query' object")
+		}
+		reqMap := req.(map[string]interface{})
+		challenge.Scope.Queries = make([]Query, len(reqMap))
+		i := 0
+		for k, v := range reqMap {
+			q := Query{
+				Property: k,
+			}
+			valueMap := v.(map[string]interface{})
+			for k1, v1 := range valueMap {
+				q.Operator = translateQueryOperator(k1)
+				q.Value = v1
+			}
+			challenge.Scope.Queries[i] = q
+			i++
+		}
+		return challenge, nil
+	}
+}
+
+func translateQueryOperator(op string) string {
+	switch op {
+	case "$eq":
+		return EQUALS
+	case "$lt":
+		return LESS
+	case "$gt":
+		return GREATER
+	default:
+		return NOOP
+	}
 }
