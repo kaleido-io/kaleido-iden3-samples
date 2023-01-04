@@ -31,11 +31,15 @@ async function getQR(req, res) {
   const sessionId = 1;
   const callbackURL = '/api/callback';
   const audience = '1125GJqgw6YEsKFwj63GY87MMxPL9kwDKxPUiwMLNZ';
+  const schemaUrl = 'https://github.com/kaleido-io/kaleido-iden3-samples/blob/main/identity/schemas/test.json-ld';
+  const schemaType = 'KYCAgeCredential';
+  const circuitId = 'credentialAtomicQuerySig';
 
   const uri = `${hostUrl}${callbackURL}?sessionId=${sessionId}`;
 
   // Generate request for basic authentication
-  const request = auth.createAuthorizationRequestWithMessage('test flow', 'message to sign', audience, uri);
+  const challenge = '12345'; // supposed to be unique for every interaction
+  const request = auth.createAuthorizationRequestWithMessage('test flow', challenge, audience, uri);
 
   request.id = '7f38a193-0918-4a48-9fac-36adfdb8b542';
   request.thid = '7f38a193-0918-4a48-9fac-36adfdb8b542';
@@ -43,13 +47,13 @@ async function getQR(req, res) {
   // Add request for a specific proof
   const proofRequest = {
     id: 1,
-    circuit_id: 'credentialAtomicQuerySig',
+    circuit_id: circuitId,
     rules: {
       query: {
         allowedIssuers: ['*'],
         schema: {
-          type: 'kyc',
-          url: 'https://s3.eu-west-1.amazonaws.com/polygonid-schemas/b585e385-f78d-48f8-8c01-7208725c3835.json-ld',
+          type: schemaType,
+          url: schemaUrl,
         },
         req: {
           birthdate: {
