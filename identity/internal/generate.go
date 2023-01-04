@@ -47,7 +47,7 @@ func GenerateIdentity() {
 	pubKey := privKey.Public()
 	fmt.Printf("-> Public key: %s\n\n", pubKey)
 
-    // persist the private key for future use
+	// persist the private key for future use
 	content := make([]byte, 32)
 	src := privKey[:]
 	copy(content[:], src)
@@ -91,7 +91,7 @@ func GenerateIdentity() {
 	// An auth claim includes the X and Y curve coordinates of the public key, along with the revocation nonce
 	authClaim, err := core.NewClaim(authSchemaHash, core.WithIndexDataInts(pubKey.X, pubKey.Y), core.WithRevocationNonce(revNonce))
 	assertNoError(err)
-	encodedAuthClaim, err := json.Marshal(authClaim)
+	encodedAuthClaim, err := json.MarshalIndent(authClaim, "", "  ")
 	assertNoError(err)
 	fmt.Printf("   -> Issued auth claim: encoded=%s\n", encodedAuthClaim)
 
@@ -125,6 +125,8 @@ func GenerateIdentity() {
 	// persist the genesis state before modifying the roots tree
 	err = persistGenesisState(*nameStr, id, claimsTree.Root(), revocationsTree.Root(), rootsTree.Root(), authClaim, authMTProof, authNonRevMTProof)
 	assertNoError(err)
+
+	updateIdentifyLookupFile(*nameStr, id.String())
 
 	fmt.Printf("Add the current claim tree root to the roots tree\n")
 	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))

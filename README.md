@@ -47,6 +47,7 @@ For each identity, the program creates the following resources:
   - **genesis_state.json**: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
   - **stateTransition_inputs.json**: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities
   - **claims/revocations/roots.db**: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.  
+- $HOMEDIR/iden3/identities.json: this file contains a lookup table of identity name and IDs. It gets updated whenever a new identify is created.
 
 Use the `init` subcommand to generate at least two identities, one as the issuer, and one as the holder.
 
@@ -169,7 +170,7 @@ Issue the KYC age claim
 
 With the `--issuer JohnDoe` parameter, we tell the program to use the private key inside the folder `JohnDoe` as the issuer of the claim.
 
-With the `--holder 117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32` paramter, we tell the program that the holder to issue the claim to is `117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32`, which is the holder's public user ID. This string is printed in the output of the `init` command.
+With the `--holder 117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32` paramter, we tell the program that the holder to issue the claim to is `117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32`, which is the holder's public user ID. This string is printed in the output of the `init` command. It can also be found in `~/iden3/identities.json` file.
 
 With the `--nonce 2` parameter, we tell the program to use the revocation nonce `2` for the claim. Every claim must have a nonce that is used to validate if the claim has been revoked or not.
 

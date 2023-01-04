@@ -124,7 +124,7 @@ func IssueClaim() {
 	age := big.NewInt(25)
 	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(age, nil), core.WithRevocationNonce(*revNonce))
 	// kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Lionel Messi"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
-	encoded, _ := json.Marshal(ageClaim)
+	encoded, _ := json.MarshalIndent(ageClaim, "", "  ")
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
 
 	// add the age claim to the claim tree
@@ -230,7 +230,7 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 		IssuerClaimSignatureS:      claimSignature.S.String(),
 	}
 	homedir, _ := os.UserHomeDir()
-	inputBytes, _ := json.Marshal(inputs)
+	inputBytes, _ := json.MarshalIndent(inputs, "", "  ")
 	outputFile := filepath.Join(homedir, fmt.Sprintf("iden3/%s/claims/%d-%s.json", issuer, ageNonce, holderId))
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
 	os.WriteFile(outputFile, inputBytes, 0644)

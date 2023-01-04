@@ -27,13 +27,36 @@ const identityName = process.env.IDEN3_NAME;
 const pathOutputJson = path.join(os.homedir(), `iden3/deploy_output.json`);
 const genesisJson = path.join(os.homedir(), `iden3/${identityName}/genesis_state.json`);
 const zkinputJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_inputs.json`);
-const zkpreviousJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_previous_inputs.json`);
 
+
+// The following files are for record purpose to assist diagnose
+const zkpreviousJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_inputs_previous.json`);
+const treeStatesJson = path.join(os.homedir(), `iden3/${identityName}/treeStates.json`);
+const treeStatesPreviousJson = path.join(os.homedir(), `iden3/${identityName}/treeStates_previous.json`);
+const archiveFolder = path.join(os.homedir(), `iden3/${identityName}/archived`);
 const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
 const { verify } = require('./snark/verify');
 
+function archiveOldFiles () {
+  const timestampString = Date.now().toString()
+  if (!fs.existsSync(archiveFolder)) {
+    fs.mkdirSync(archiveFolder)
+  } 
+  if (fs.existsSync(zkpreviousJson)) {
+
+    fs.renameSync(zkpreviousJson, path.join(archiveFolder, `${timestampString}-stateTransition_inputs_previous.json`));
+  }
+  if (fs.existsSync(treeStatesPreviousJson)) {
+    fs.renameSync(treeStatesPreviousJson, path.join(archiveFolder, `${timestampString}-treeStates_previous.json`));
+  }
+}
+
 async function main() {
+  if (!fs.existsSync(zkinputJson)) {
+    throw new Error(`Not state transition input file found for ${identityName} under: ${zkinputJson}`);
+  }
+  archiveOldFiles();
   let stateContractAddress;
   if (hre.network.name === 'mumbai') {
     stateContractAddress = '0x46Fd04eEa588a3EA7e9F055dd691C688c4148ab3';
@@ -92,9 +115,8 @@ async function main() {
   if (existingStateString !== oldState) {
     if (existingStateString === newState) {
       console.log('State on chain is already the latest, rename the local state input files to a previous state file');
-      fs.rename(zkinputJson, zkpreviousJson, function(err) {
-        if ( err ) console.log(err);
-      });
+      fs.renameSync(zkinputJson, zkpreviousJson);
+      fs.renameSync(treeStatesJson, treeStatesPreviousJson);
       process.exit(0);
     } else {
       if (isOldStateGenesis && existingStateString === "0") {
@@ -111,9 +133,8 @@ async function main() {
   let updatedState = await contract.getState(issuerId);
   console.log('State after transaction: ', updatedState);
   // clean up the used inputs
-  fs.rename(zkinputJson, zkpreviousJson, function(err) {
-    if ( err ) console.log(err);
-  });
+  fs.renameSync(zkinputJson, zkpreviousJson);
+  fs.renameSync(treeStatesJson, treeStatesPreviousJson);
 }
 
 // modified from snarkjs.groth16.exportSolidityCallData()

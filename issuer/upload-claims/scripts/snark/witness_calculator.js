@@ -143,7 +143,7 @@ class WitnessCalculator {
           this.instance.exports.setInputSignal(hMSB, hLSB, i);
           input_counter++;
         } catch (err) {
-          // console.log(`After adding signal ${i} of ${k}`)
+          console.log(`After adding signal ${i} of ${k}`)
           throw new Error(err);
         }
       }

@@ -102,6 +102,25 @@ func getAuthClaimSchemaHash() (core.SchemaHash, error) {
 	return core.NewSchemaHashFromHex("ca938857241db9451ea329256b9c06e5")
 }
 
+type IdentityLookupMap map[string]string
+
+func updateIdentifyLookupFile(identifyName string, identifyID string) {
+	homedir, _ := os.UserHomeDir()
+	lookupFilename := filepath.Join(homedir, "iden3/identities.json")
+	mapToSave := map[string]string{}
+	existingMapContent, err := os.ReadFile(lookupFilename)
+	if os.IsNotExist(err) {
+		_ = os.MkdirAll(filepath.Dir(lookupFilename), os.ModePerm)
+	} else {
+		err = json.Unmarshal(existingMapContent, &mapToSave)
+		assertNoError(err)
+	}
+	mapToSave[identifyName] = identifyID
+	inputBytes, _ := json.MarshalIndent(mapToSave, "", "  ")
+	err = os.WriteFile(lookupFilename, inputBytes, 0644)
+	assertNoError(err)
+}
+
 // the genesis state is used for proving an identity's auth claim when generating any proof
 func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, rootsTreeRoot *merkletree.Hash, authClaim *core.Claim, authMTProof, authNonRevMTProof *merkletree.Proof) error {
 	state, _ := merkletree.HashElems(claimsTreeRoot.BigInt(), revTreeRoot.BigInt(), rootsTreeRoot.BigInt())
@@ -122,7 +141,7 @@ func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, 
 		RevTreeRoot:             revTreeRoot,
 		RootsTreeRoot:           rootsTreeRoot,
 	}
-	inputBytes, _ := json.Marshal(genState)
+	inputBytes, _ := json.MarshalIndent(genState, "", "  ")
 	homedir, _ := os.UserHomeDir()
 	outputFile := filepath.Join(homedir, fmt.Sprintf("iden3/%s/genesis_state.json", name))
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
@@ -147,6 +166,18 @@ func loadGenesisState(name string) (*issuerState, error) {
 		return nil, err
 	}
 	return &genesisState, nil
+}
+
+type TreeState struct {
+	IdentityState  *merkletree.Hash `json:"identityState"`
+	ClaimsTreeRoot *merkletree.Hash `json:"claimsTreeRoot"`
+	RevTreeRoot    *merkletree.Hash `json:"revTreeRoot"`
+	RootsTreeRoot  *merkletree.Hash `json:"rootsTreeRoot"`
+}
+
+type TreeStates struct {
+	Old *TreeState `json:"old"`
+	New *TreeState `json:"new"`
 }
 
 func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, oldTreeState circuits.TreeState, privKey babyjub.PrivateKey) error {
@@ -181,7 +212,7 @@ func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkle
 	}
 
 	homedir, _ := os.UserHomeDir()
-	inputBytes, err := json.Marshal(stateTransitionInputs)
+	inputBytes, err := json.MarshalIndent(stateTransitionInputs, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -191,6 +222,31 @@ func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkle
 		return err
 	}
 	fmt.Printf("-> State transition input bytes written to the file: %s\n", outputFile)
+
+	treeStates := TreeStates{
+		Old: &TreeState{
+			IdentityState:  oldTreeState.State,
+			ClaimsTreeRoot: oldTreeState.ClaimsRoot,
+			RevTreeRoot:    oldTreeState.RevocationRoot,
+			RootsTreeRoot:  oldTreeState.RootOfRoots,
+		},
+		New: &TreeState{
+			IdentityState:  newState,
+			ClaimsTreeRoot: claimsTree.Root(),
+			RevTreeRoot:    revocationsTree.Root(),
+			RootsTreeRoot:  rootsTree.Root(),
+		},
+	}
+	inputBytes2, err := json.MarshalIndent(treeStates, "", "  ")
+	if err != nil {
+		return err
+	}
+	outputFile2 := filepath.Join(homedir, fmt.Sprintf("iden3/%s/treeStates.json", name))
+	err = os.WriteFile(outputFile2, inputBytes2, 0644)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("-> Tree states written into file: %s\n", outputFile2)
 	return nil
 }
 
