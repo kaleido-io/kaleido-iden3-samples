@@ -194,6 +194,21 @@ func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkle
 	return nil
 }
 
+func loadPendingState(name string) (*stateTransitionInputs, error) {
+	homedir, _ := os.UserHomeDir()
+	inputFile := filepath.Join(homedir, fmt.Sprintf("iden3/%s/stateTransition_inputs.json", name))
+	content, err := os.ReadFile(inputFile)
+	if err != nil {
+		return nil, err
+	}
+	var sti stateTransitionInputs
+	err = json.Unmarshal(content, &sti)
+	if err != nil {
+		return nil, err
+	}
+	return &sti, nil
+}
+
 func loadState(ctx context.Context, issuerNameStr *string) (*merkletree.MerkleTree, *merkletree.MerkleTree, *merkletree.MerkleTree, error) {
 	claimsDB, revsDB, rootsDB, err := initMerkleTreeDBs(*issuerNameStr)
 	if err != nil {

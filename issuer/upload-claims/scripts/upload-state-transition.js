@@ -27,6 +27,7 @@ const identityName = process.env.IDEN3_NAME;
 const pathOutputJson = path.join(os.homedir(), `iden3/deploy_output.json`);
 const genesisJson = path.join(os.homedir(), `iden3/${identityName}/genesis_state.json`);
 const zkinputJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_inputs.json`);
+const zkpreviousJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_previous_inputs.json`);
 
 const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
@@ -48,19 +49,33 @@ async function main() {
   const contract = await ethers.getContractAt('State', stateContractAddress);
 
   // gather the inputs for generating the proof
-  let inputs = JSON.parse(fs.readFileSync(genesisJson));
-  inputs = {
-    ...inputs,
-    ...JSON.parse(fs.readFileSync(zkinputJson)),
-  };
-  delete inputs.authClaimMtpBytes;
-  delete inputs.authClaimNonRevMtpBytes;
+  if (!fs.existsSync(zkinputJson)) {
+    console.log(`State transition skipped as new state detected - no state input file found under location ${zkinputJson}`)
+    process.exit(0)
+  }
+  let genesisInfo = JSON.parse(fs.readFileSync(genesisJson));
+  let identifyInfo = {
+    authClaim: genesisInfo.authClaim,
+    authClaimMtp: genesisInfo.authClaimMtp,
+    authClaimNonRevMtp: genesisInfo.authClaimNonRevMtp,
+    authClaimNonRevMtpAuxHi: genesisInfo.authClaimNonRevMtpAuxHi,
+    authClaimNonRevMtpAuxHv: genesisInfo.authClaimNonRevMtpAuxHv,
+    authClaimNonRevMtpNoAux: genesisInfo.authClaimNonRevMtpNoAux,
+    userID: genesisInfo.userID
+  }
+  const issuerId = genesisInfo.userID;
+  const stateTransitionInputs = JSON.parse(fs.readFileSync(zkinputJson))
+  
+  const oldState = stateTransitionInputs.oldUserState;
+  const newState = stateTransitionInputs.newUserState;
+  const isOldStateGenesis = stateTransitionInputs.isOldStateGenesis;
+  
+  let inputs = {
+    ...identifyInfo,
+    ...stateTransitionInputs
+  }
   console.log(inputs);
 
-  const issuerId = inputs.userID;
-  const oldState = inputs.oldUserState;
-  const newState = inputs.newUserState;
-  const isOldStateGenesis = inputs.isOldStateGenesis;
 
   await generateWitness(inputs);
   const { proof, publicSignals } = await prove();
@@ -71,13 +86,34 @@ async function main() {
   const b = result[1];
   const c = result[2];
 
-  let identityState0 = await contract.getState(issuerId);
-  console.log('State before transaction: ', identityState0);
+  let existingState = await contract.getState(issuerId);
+  let existingStateString = existingState.toString()
+  console.log('State before transaction: ', existingStateString);
+  if (existingStateString !== oldState) {
+    if (existingStateString === newState) {
+      console.log('State on chain is already the latest, rename the local state input files to a previous state file');
+      fs.rename(zkinputJson, zkpreviousJson, function(err) {
+        if ( err ) console.log(err);
+      });
+      process.exit(0);
+    } else {
+      if (isOldStateGenesis && existingStateString === "0") {
+        // genesis state, continue
+      } else {
+        console.log(`The recorded identify state: ${existingStateString} does not equal to the old identity state: ${oldState} in file ${zkinputJson}.`);
+        process.exit(1);
+      }
+    }
+  }
   console.log('Invoking state transaction on chain ...');
-  const tx = await contract.transitState(issuerId, oldState, newState, isOldStateGenesis, a, b, c);
+  const tx = await contract.transitState(issuerId, oldState, newState, isOldStateGenesis === "1", a, b, c);
   await tx.wait();
-  let identityState1 = await contract.getState(issuerId);
-  console.log('State after transaction: ', identityState1);
+  let updatedState = await contract.getState(issuerId);
+  console.log('State after transaction: ', updatedState);
+  // clean up the used inputs
+  fs.rename(zkinputJson, zkpreviousJson, function(err) {
+    if ( err ) console.log(err);
+  });
 }
 
 // modified from snarkjs.groth16.exportSolidityCallData()

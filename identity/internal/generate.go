@@ -47,6 +47,15 @@ func GenerateIdentity() {
 	pubKey := privKey.Public()
 	fmt.Printf("-> Public key: %s\n\n", pubKey)
 
+    // persist the private key for future use
+	content := make([]byte, 32)
+	src := privKey[:]
+	copy(content[:], src)
+	keyPath := getPrivateKeyPath(*nameStr)
+	_ = os.MkdirAll(filepath.Dir(keyPath), os.ModePerm)
+	err := os.WriteFile(keyPath, []byte(content), 0644)
+	assertNoError(err)
+
 	ctx := context.Background()
 	claimsDB, revsDB, rootsDB, err := initMerkleTreeDBs(*nameStr)
 	assertNoError(err)
@@ -119,14 +128,6 @@ func GenerateIdentity() {
 
 	fmt.Printf("Add the current claim tree root to the roots tree\n")
 	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
-	assertNoError(err)
-
-	content := make([]byte, 32)
-	src := privKey[:]
-	copy(content[:], src)
-	keyPath := getPrivateKeyPath(*nameStr)
-	_ = os.MkdirAll(filepath.Dir(keyPath), os.ModePerm)
-	err = os.WriteFile(keyPath, []byte(content), 0644)
 	assertNoError(err)
 
 	err = persistNewState(*nameStr, claimsTree, revocationsTree, rootsTree, genesisTreeState, privKey)
