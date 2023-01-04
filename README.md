@@ -96,7 +96,7 @@ For successful runs, the program may create new resources in the identify folder
 - $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity:
   - **stateTransition_inputs_previous.json**: if a state transition is successfully applied, the input file `stateTransition_inputs.json` will be renamed to `stateTransition_inputs_previous.json`
   - **treeStates_previous.json**: if a state transition is successfully applied, the tree state record file `treeStates.json` will be renamed to `treeStates_previous.json`
-  - **archived_transitions**: when more than 2 state transition have been executed, all historical transition input and tree states files will be archived into this folder with a timestamp prefix for record purpose.
+  - **archived_transitions**: when more than 2 state transitions have been executed, all historical transition input and tree states files will be archived into this folder with a timestamp prefix for record purpose.
 
 With the `IDEN3_NAME` set to `JohnDoe`, we tell the program to publish the state of JohnDoe on chain, which will be act as the issuer in the later tutorial.
 
