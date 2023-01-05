@@ -1,6 +1,18 @@
 const express = require('express');
+const { join } = require('path');
 const { auth, resolver, loaders } = require('@iden3/js-iden3-auth');
 const getRawBody = require('raw-body');
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+const argv = yargs(hideBin(process.argv)).argv;
+
+let publicHost = argv['public-host'];
+if (!publicHost) {
+  console.log("No publicly accessible hostname provided with '--public-host', using localhost:8080");
+  publicHost = 'http://localhost:8080';
+} else {
+  publicHost = publicHost.replace(/\/+$/, '');
+}
 
 const app = express();
 const port = 8080;
@@ -27,15 +39,14 @@ const requestMap = new Map();
 // GetQR returns auth request
 async function getQR(req, res) {
   // Audience is verifier id
-  const hostUrl = 'http://5c8e-208-1-60-238.ngrok.io';
   const sessionId = 1;
   const callbackURL = '/api/callback';
   const audience = '1125GJqgw6YEsKFwj63GY87MMxPL9kwDKxPUiwMLNZ';
-  const schemaUrl = 'https://github.com/kaleido-io/kaleido-iden3-samples/blob/main/identity/schemas/test.json-ld';
+  const schemaUrl = 'https://schema.polygonid.com/jsonld/kyc.json-ld';
   const schemaType = 'KYCAgeCredential';
   const circuitId = 'credentialAtomicQuerySig';
 
-  const uri = `${hostUrl}${callbackURL}?sessionId=${sessionId}`;
+  const uri = `${publicHost}${callbackURL}?sessionId=${sessionId}`;
 
   // Generate request for basic authentication
   const challenge = '12345'; // supposed to be unique for every interaction
@@ -56,7 +67,7 @@ async function getQR(req, res) {
           url: schemaUrl,
         },
         req: {
-          birthdate: {
+          birthDay: {
             $lt: 20000101, // bithDay field less then 2000/01/01
           },
         },
@@ -80,7 +91,7 @@ async function callback(req, res) {
 
   // get JWZ token params from the post request
   const raw = await getRawBody(req);
-  const tokenStr = raw.toString().trim();
+  const authResponse = JSON.parse(raw);
 
   // fetch authRequest from sessionID
   const authRequest = requestMap.get(`${sessionId}`);
@@ -88,7 +99,7 @@ async function callback(req, res) {
   console.log(authRequest);
 
   // Locate the directory that contains circuit's verification keys
-  const verificationKeyloader = new loaders.FSKeyLoader('../keys');
+  const verificationKeyloader = new loaders.FSKeyLoader(join(__dirname, './keys'));
   const sLoader = new loaders.UniversalSchemaLoader('ipfs.io');
 
   // Add Polygon RPC node endpoint - needed to read on-chain state and identity state contract address
@@ -98,7 +109,7 @@ async function callback(req, res) {
   const verifier = new auth.Verifier(verificationKeyloader, sLoader, ethStateResolver);
 
   try {
-    authResponse = await verifier.fullVerify(tokenStr, authRequest);
+    authResponse = await verifier.verifyAuthResponse(authResponse, authRequest);
   } catch (error) {
     return res.status(500).send(error);
   }
