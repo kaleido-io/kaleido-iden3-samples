@@ -138,19 +138,19 @@ func IssueClaim() {
 
 	fmt.Println("Issue the KYC age claim")
 	// Load the schema for the KYC claims
-	schemaBytes, _ := os.ReadFile("./schemas/test.json-ld")
+	schemaBytes, _ := os.ReadFile("./schemas/kyc.json-ld")
 	var sHash core.SchemaHash
 
 	// issue the age claim
-	h := keccak256.Hash(schemaBytes, []byte("KYCAgeCredential"))
+	h := keccak256.Hash(schemaBytes, []byte("AgeCredential"))
 	copy(sHash[:], h[len(h)-16:])
 	sHashText, _ := sHash.MarshalText()
 	ageSchemaHash := string(sHashText)
-	fmt.Println("-> Schema hash for 'KYCAgeCredential':", ageSchemaHash)
+	fmt.Println("-> Schema hash for 'AgeCredential':", ageSchemaHash)
 
 	kycAgeSchema, _ := core.NewSchemaHashFromHex(ageSchemaHash)
-	birthdate := big.NewInt(19950704)
-	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthdate, nil), core.WithRevocationNonce(*revNonce))
+	birthDay := big.NewInt(19950704)
+	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthDay, nil), core.WithRevocationNonce(*revNonce))
 	// kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Lionel Messi"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
 	encoded, _ := json.MarshalIndent(ageClaim, "", "  ")
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
