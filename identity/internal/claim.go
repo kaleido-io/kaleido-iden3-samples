@@ -78,6 +78,33 @@ func IssueClaim() {
 	claimsTree, revocationsTree, rootsTree, err := loadState(ctx, issuerNameStr)
 	assertNoError(err)
 
+	// before adding any claims workout the old state
+	var issuerRecordedTreeState circuits.TreeState
+	// is there is already a pending state change, copy the old state from there
+	// so that we can batch claim additions together
+	pendingIssuerState, err := loadPendingState(*issuerNameStr)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// there is no pending state, it's fine to calculate the old state from the merkle tree roots
+			issuerState, _ := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
+			issuerRecordedTreeState = circuits.TreeState{
+				State:          issuerState,
+				ClaimsRoot:     claimsTree.Root(),
+				RevocationRoot: revocationsTree.Root(),
+				RootOfRoots:    rootsTree.Root(),
+			}
+		} else {
+			assertNoError(err)
+		}
+	} else {
+		issuerRecordedTreeState = circuits.TreeState{
+			State:          pendingIssuerState.OldIdState,
+			ClaimsRoot:     pendingIssuerState.ClaimsTreeRoot,
+			RevocationRoot: pendingIssuerState.RevTreeRoot,
+			RootOfRoots:    pendingIssuerState.RootsTreeRoot,
+		}
+	}
+
 	fmt.Println("Issue the KYC age claim")
 	// Load the schema for the KYC claims
 	schemaBytes, _ := os.ReadFile("./schemas/test.json-ld")
@@ -94,7 +121,7 @@ func IssueClaim() {
 	birthdate := big.NewInt(19950704)
 	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthdate, nil), core.WithRevocationNonce(*revNonce))
 	// kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Lionel Messi"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
-	encoded, _ := json.Marshal(ageClaim)
+	encoded, _ := json.MarshalIndent(ageClaim, "", "  ")
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
 
 	// add the age claim to the claim tree
@@ -121,18 +148,10 @@ func IssueClaim() {
 	// authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaimRevNonce)), revocationsTree.Root())
 	// End of saved section
 
-	issuerState, _ := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
-	issuerTreeState := circuits.TreeState{
-		State:          issuerState,
-		ClaimsRoot:     claimsTree.Root(),
-		RevocationRoot: revocationsTree.Root(),
-		RootOfRoots:    rootsTree.Root(),
-	}
-
-	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerTreeState, issuerGenesisState)
+	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerRecordedTreeState, issuerGenesisState)
 }
 
-func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, genesisTreeState circuits.TreeState, issuerGenesisState *issuerState) {
+func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, issuerRecordedTreeState circuits.TreeState, issuerGenesisState *issuerState) {
 	// persists the input for the validity of the issuer identity against the latest state tree
 	a := circuits.AtomicQuerySigInputs{}
 
@@ -167,12 +186,12 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	}
 	claimIssuerSignature := circuits.BJJSignatureProof{
 		IssuerID:           issuerId,
-		IssuerTreeState:    genesisTreeState,
+		IssuerTreeState:    issuerRecordedTreeState,
 		IssuerAuthClaimMTP: issuerAuthMTProof,
 		Signature:          claimSignature,
 		IssuerAuthClaim:    &issuerGenesisState.AuthClaim,
 		IssuerAuthNonRevProof: circuits.ClaimNonRevStatus{
-			TreeState: genesisTreeState,
+			TreeState: issuerRecordedTreeState,
 			Proof:     issuerAuthNonRevMTProof,
 		},
 	}
@@ -208,11 +227,18 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 		IssuerClaimSignatureS:      claimSignature.S.String(),
 	}
 	homedir, _ := os.UserHomeDir()
-	inputBytes, _ := json.Marshal(inputs)
+	inputBytes, _ := json.MarshalIndent(inputs, "", "  ")
 	outputFile := filepath.Join(homedir, fmt.Sprintf("iden3/%s/claims/%d-%s.json", issuer, ageNonce, holderId))
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
 	os.WriteFile(outputFile, inputBytes, 0644)
 	fmt.Printf("-> Input bytes for issued user claim written to the file: %s\n", outputFile)
+
+	fmt.Printf("Add the current claim tree root to the roots tree\n")
+	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
+	assertNoError(err)
+
+	err = persistNewState(issuer, claimsTree, revocationsTree, rootsTree, issuerRecordedTreeState, *privKey)
+	assertNoError(err)
 }
 
 func getNodeAuxValue(a *merkletree.NodeAux) (*merkletree.Hash, *merkletree.Hash, string) {
