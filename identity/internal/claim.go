@@ -122,12 +122,12 @@ func IssueClaim() {
 
 	hIndex, _ := authClaim.HIndex()
 
-	authMTProof, _, err := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
+	authMTProof, _, err := claimsTree.GenerateProof(ctx, hIndex, issuerPreviousState.ClaimsTreeRoot)
 	if err != nil {
 		fmt.Printf("Failed to generate issuer auth claim proof: %s\n", err)
 		os.Exit(1)
 	}
-	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaim.GetRevocationNonce())), revocationsTree.Root())
+	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaim.GetRevocationNonce())), issuerPreviousState.RevTreeRoot)
 	if err != nil {
 		fmt.Printf("Failed to recover issuer auth claim non rev proof from saved bytes: %s\n", err)
 		os.Exit(1)
@@ -155,21 +155,26 @@ func IssueClaim() {
 	encoded, _ := json.MarshalIndent(ageClaim, "", "  ")
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
 
+	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerRecordedTreeState, issuerPreviousState, authClaim)
+}
+
+func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, issuerRecordedTreeState circuits.TreeState, issuerPreviousState *issuerState, issuerAuthClaim *core.Claim) {
+
+	issuerAuthMTProof, err := merkletree.NewProofFromBytes(issuerPreviousState.AuthClaimMtpBytes)
+	assertNoError(err)
+
+	issuerAuthNonRevMTProof, err := merkletree.NewProofFromBytes(issuerPreviousState.AuthClaimNonRevMtpBytes)
+	assertNoError(err)
 	// add the age claim to the claim tree
 	fmt.Printf("-> Add the age claim to the claims tree\n\n")
 	ageHashIndex, ageHashValue, _ := ageClaim.HiHv()
 	claimsTree.Add(ctx, ageHashIndex, ageHashValue)
 
-	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerRecordedTreeState, issuerPreviousState, authClaim)
-}
-
-func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, issuerRecordedTreeState circuits.TreeState, issuerPreviousState *issuerState, issuerAuthClaim *core.Claim) {
 	// persists the input for the validity of the issuer identity against the latest state tree
 	a := circuits.AtomicQuerySigInputs{}
 
 	// persists additional inputs used for generating zk proofs by the holder
 	// these are candidates for sending to the holder wallet
-	ageHashIndex, _, _ := ageClaim.HiHv()
 	ageClaimMTProof, _, _ := claimsTree.GenerateProof(ctx, ageHashIndex, claimsTree.Root())
 	stateAfterAddingAgeClaim, _ := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
 	issuerStateAfterClaimAdd := circuits.TreeState{
@@ -186,18 +191,7 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	}
 	commonHash, _ := merkletree.HashElems(hashIndex, hashValue)
 	claimSignature := privKey.SignPoseidon(commonHash.BigInt())
-	hIndex, _ := issuerAuthClaim.HIndex()
 
-	issuerAuthMTProof, _, err := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
-	if err != nil {
-		fmt.Printf("Failed to generate issuer auth claim proof: %s\n", err)
-		os.Exit(1)
-	}
-	issuerAuthNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(issuerAuthClaim.GetRevocationNonce())), revocationsTree.Root())
-	if err != nil {
-		fmt.Printf("Failed to recover issuer auth claim non rev proof from saved bytes: %s\n", err)
-		os.Exit(1)
-	}
 	claimIssuerSignature := circuits.BJJSignatureProof{
 		IssuerID:           issuerId,
 		IssuerTreeState:    issuerRecordedTreeState,
@@ -251,8 +245,13 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
 	assertNoError(err)
 
-	err = persistNewState(issuer, claimsTree, revocationsTree, rootsTree, issuerRecordedTreeState, *privKey, issuerAuthClaim)
+	err = persistNewState(issuer, claimsTree, revocationsTree, rootsTree, issuerRecordedTreeState, *privKey, &authClaimAndProofs{
+		AuthClaim:               issuerPreviousState.AuthClaim,
+		AuthClaimMtpBytes:       issuerPreviousState.AuthClaimMtpBytes,
+		AuthClaimNonRevMtpBytes: issuerPreviousState.AuthClaimNonRevMtpBytes,
+	}, false)
 	assertNoError(err)
+
 }
 
 func getNodeAuxValue(a *merkletree.NodeAux) (*merkletree.Hash, *merkletree.Hash, string) {

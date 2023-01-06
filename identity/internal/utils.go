@@ -45,8 +45,13 @@ type issuerState struct {
 	RootsTreeRoot           *merkletree.Hash `json:"rootsTreeRoot"`
 }
 
+type authClaimAndProofs struct {
+	AuthClaim               core.Claim `json:"authClaim"`
+	AuthClaimMtpBytes       []byte     `json:"authClaimMtpBytes,omitempty"`
+	AuthClaimNonRevMtpBytes []byte     `json:"authClaimNonRevMtpBytes,omitempty"`
+}
+
 type stateTransitionInputs struct {
-	UserID                  string           `json:"userID"`
 	AuthClaim               core.Claim       `json:"authClaim"`
 	AuthClaimMtp            []string         `json:"authClaimMtp"`
 	AuthClaimNonRevMtp      []string         `json:"authClaimNonRevMtp"`
@@ -173,8 +178,7 @@ type TreeStates struct {
 	New *TreeState `json:"new"`
 }
 
-func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, oldTreeState circuits.TreeState, privKey babyjub.PrivateKey, authClaim *core.Claim) error {
-	ctx := context.TODO()
+func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, oldTreeState circuits.TreeState, privKey babyjub.PrivateKey, authClaimProof *authClaimAndProofs, isGenesis bool) error {
 	// construct the new identity state
 	fmt.Println("Calculate the new state")
 	newState, err := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
@@ -190,18 +194,19 @@ func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkle
 	// construct the inputs to feed to the proof generation for the state transition
 	fmt.Println("-> state transition from old to new")
 	isOldStateGenesis := "0"
-	if oldTreeState.RevocationRoot.String() == "0" && oldTreeState.RootOfRoots.String() == "0" {
+	if isGenesis {
 		isOldStateGenesis = "1"
 	}
-	hIndex, _, _ := authClaim.HiHv()
-	fmt.Println("-> Generate a merkle proof of the inclusion of the auth claim in the claims tree")
-	authMTProof, _, _ := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
-	fmt.Printf("-> Generate a merkle proof of the exclusion of the revocation nonce in the revocation tree\n\n")
-	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaim.GetRevocationNonce())), revocationsTree.Root())
+
+	authMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimMtpBytes)
+	assertNoError(err)
+
+	authNonRevMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimNonRevMtpBytes)
+	assertNoError(err)
 	key, value, noAux := getNodeAuxValue(authNonRevMTProof.NodeAux)
 	a := circuits.AtomicQuerySigInputs{}
 	stateTransitionInputs := stateTransitionInputs{
-		AuthClaim:               *authClaim,
+		AuthClaim:               *&authClaimProof.AuthClaim,
 		AuthClaimMtp:            circuits.PrepareSiblingsStr(authMTProof.AllSiblings(), a.GetMTLevel()),
 		AuthClaimNonRevMtp:      circuits.PrepareSiblingsStr(authNonRevMTProof.AllSiblings(), a.GetMTLevel()),
 		AuthClaimNonRevMtpAuxHi: key,

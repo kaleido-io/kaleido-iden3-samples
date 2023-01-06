@@ -118,6 +118,11 @@ func GenerateIdentity() {
 		RootOfRoots:    rootsTree.Root(),
 	}
 
+	fmt.Println("-> Generate a merkle proof of the inclusion of the auth claim in the claims tree")
+	authMTProof, _, _ := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
+	fmt.Printf("-> Generate a merkle proof of the exclusion of the revocation nonce in the revocation tree\n\n")
+	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaim.GetRevocationNonce())), revocationsTree.Root())
+
 	// persist the genesis state before modifying the roots tree
 	err = persistGenesisState(*nameStr, id, claimsTree.Root(), revocationsTree.Root(), rootsTree.Root(), authClaim)
 	assertNoError(err)
@@ -128,6 +133,11 @@ func GenerateIdentity() {
 	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
 	assertNoError(err)
 
-	err = persistNewState(*nameStr, claimsTree, revocationsTree, rootsTree, genesisTreeState, privKey, authClaim)
+	err = persistNewState(*nameStr, claimsTree, revocationsTree, rootsTree, genesisTreeState, privKey, &authClaimAndProofs{
+		AuthClaim:               *authClaim,
+		AuthClaimMtpBytes:       authMTProof.Bytes(),
+		AuthClaimNonRevMtpBytes: authNonRevMTProof.Bytes(),
+	}, true)
 	assertNoError(err)
+
 }

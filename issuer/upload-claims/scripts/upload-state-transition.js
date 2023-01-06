@@ -77,12 +77,6 @@ async function main() {
   }
   let genesisInfo = JSON.parse(fs.readFileSync(genesisJson));
   let identifyInfo = {
-    authClaim: genesisInfo.authClaim,
-    authClaimMtp: genesisInfo.authClaimMtp,
-    authClaimNonRevMtp: genesisInfo.authClaimNonRevMtp,
-    authClaimNonRevMtpAuxHi: genesisInfo.authClaimNonRevMtpAuxHi,
-    authClaimNonRevMtpAuxHv: genesisInfo.authClaimNonRevMtpAuxHv,
-    authClaimNonRevMtpNoAux: genesisInfo.authClaimNonRevMtpNoAux,
     userID: genesisInfo.userID
   }
   const issuerId = genesisInfo.userID;
