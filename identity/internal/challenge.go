@@ -169,7 +169,7 @@ func RespondToChallenge() {
 		RootOfRoots:    &merkletree.HashZero,
 	}
 
-	issuerAuthClaimMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerAuthState.AuthClaimMtpBytes)
+	issuerAuthClaimMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerClaimMtpBytes)
 	assertNoError(err)
 
 	issuerAuthClaimNonRevMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerAuthState.AuthClaimNonRevMtpBytes)

@@ -111,10 +111,6 @@ func GenerateIdentity() {
 
 	// construct the genesis state snapshot, to be used as input to the ZKP for the state transition
 	fmt.Println("Construct the state snapshot (later as input to the ZK proof generation)")
-	fmt.Println("-> Generate a merkle proof of the inclusion of the auth claim in the claims tree")
-	authMTProof, _, _ := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
-	fmt.Printf("-> Generate a merkle proof of the exclusion of the revocation nonce in the revocation tree\n\n")
-	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(revNonce)), revocationsTree.Root())
 	genesisTreeState := circuits.TreeState{
 		State:          genesisState,
 		ClaimsRoot:     claimsTree.Root(),
@@ -123,7 +119,7 @@ func GenerateIdentity() {
 	}
 
 	// persist the genesis state before modifying the roots tree
-	err = persistGenesisState(*nameStr, id, claimsTree.Root(), revocationsTree.Root(), rootsTree.Root(), authClaim, authMTProof, authNonRevMTProof)
+	err = persistGenesisState(*nameStr, id, claimsTree.Root(), revocationsTree.Root(), rootsTree.Root(), authClaim)
 	assertNoError(err)
 
 	updateIdentifyLookupFile(*nameStr, id.String())
@@ -132,6 +128,6 @@ func GenerateIdentity() {
 	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
 	assertNoError(err)
 
-	err = persistNewState(*nameStr, claimsTree, revocationsTree, rootsTree, genesisTreeState, privKey)
+	err = persistNewState(*nameStr, claimsTree, revocationsTree, rootsTree, genesisTreeState, privKey, authClaim)
 	assertNoError(err)
 }
