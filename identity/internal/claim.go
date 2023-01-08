@@ -215,6 +215,11 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 		SignatureProof: claimIssuerSignature,
 	}
 	key, value, noAux := getNodeAuxValue(proofNotRevoke.NodeAux)
+	issuerPreviousState.AuthClaimMtp = circuits.PrepareSiblingsStr(issuerAuthMTProof.AllSiblings(), a.GetMTLevel())
+	issuerPreviousState.AuthClaimNonRevMtp = circuits.PrepareSiblingsStr(issuerAuthNonRevMTProof.AllSiblings(), a.GetMTLevel())
+	issuerPreviousState.AuthClaimNonRevMtpAuxHi = key
+	issuerPreviousState.AuthClaimNonRevMtpAuxHv = value
+	issuerPreviousState.AuthClaimNonRevMtpNoAux = noAux
 	inputs := ClaimInputs{
 		IssuerAuthState:            issuerPreviousState,
 		IssuerClaim:                inputsUserClaim.Claim,

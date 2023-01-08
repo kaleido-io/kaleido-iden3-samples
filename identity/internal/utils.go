@@ -37,6 +37,11 @@ import (
 type issuerState struct {
 	AuthClaimMtpBytes       []byte           `json:"authClaimMtpBytes,omitempty"`
 	AuthClaimNonRevMtpBytes []byte           `json:"authClaimNonRevMtpBytes,omitempty"`
+	AuthClaimMtp            []string         `json:"authClaimMtp,omitempty"`
+	AuthClaimNonRevMtp      []string         `json:"authClaimNonRevMtp,omitempty"`
+	AuthClaimNonRevMtpAuxHi *merkletree.Hash `json:"authClaimNonRevMtpAuxHi,omitempty"`
+	AuthClaimNonRevMtpAuxHv *merkletree.Hash `json:"authClaimNonRevMtpAuxHv,omitempty"`
+	AuthClaimNonRevMtpNoAux string           `json:"authClaimNonRevMtpNoAux,omitempty"`
 	AuthClaim               core.Claim       `json:"authClaim"`
 	UserID                  string           `json:"userID"`
 	IDState                 *merkletree.Hash `json:"newUserState"`
@@ -129,21 +134,35 @@ func updateIdentifyLookupFile(identifyName string, identifyID string) {
 }
 
 // the genesis state is used for proving an identity's auth claim when generating any proof
-func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, rootsTreeRoot *merkletree.Hash, authClaim *core.Claim) error {
+func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, rootsTreeRoot *merkletree.Hash, authClaimProof *authClaimAndProofs) error {
 	state, _ := merkletree.HashElems(claimsTreeRoot.BigInt(), revTreeRoot.BigInt(), rootsTreeRoot.BigInt())
+	authMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimMtpBytes)
+	assertNoError(err)
+
+	authNonRevMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimNonRevMtpBytes)
+	assertNoError(err)
+	key, value, noAux := getNodeAuxValue(authNonRevMTProof.NodeAux)
+	a := circuits.AtomicQuerySigInputs{}
 	genState := issuerState{
-		AuthClaim:      *authClaim,
-		UserID:         id.BigInt().String(),
-		IDState:        state,
-		ClaimsTreeRoot: claimsTreeRoot,
-		RevTreeRoot:    revTreeRoot,
-		RootsTreeRoot:  rootsTreeRoot,
+		AuthClaim:               authClaimProof.AuthClaim,
+		AuthClaimMtp:            circuits.PrepareSiblingsStr(authMTProof.AllSiblings(), a.GetMTLevel()),
+		AuthClaimMtpBytes:       authMTProof.Bytes(),
+		AuthClaimNonRevMtp:      circuits.PrepareSiblingsStr(authNonRevMTProof.AllSiblings(), a.GetMTLevel()),
+		AuthClaimNonRevMtpBytes: authNonRevMTProof.Bytes(),
+		AuthClaimNonRevMtpAuxHi: key,
+		AuthClaimNonRevMtpAuxHv: value,
+		AuthClaimNonRevMtpNoAux: noAux,
+		UserID:                  id.BigInt().String(),
+		IDState:                 state,
+		ClaimsTreeRoot:          claimsTreeRoot,
+		RevTreeRoot:             revTreeRoot,
+		RootsTreeRoot:           rootsTreeRoot,
 	}
 	inputBytes, _ := json.MarshalIndent(genState, "", "  ")
 	homedir, _ := os.UserHomeDir()
 	outputFile := filepath.Join(homedir, fmt.Sprintf("iden3/%s/genesis_state.json", name))
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
-	err := os.WriteFile(outputFile, inputBytes, 0644)
+	err = os.WriteFile(outputFile, inputBytes, 0644)
 	if err != nil {
 		return err
 	}

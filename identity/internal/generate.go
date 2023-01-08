@@ -124,7 +124,11 @@ func GenerateIdentity() {
 	authNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaim.GetRevocationNonce())), revocationsTree.Root())
 
 	// persist the genesis state before modifying the roots tree
-	err = persistGenesisState(*nameStr, id, claimsTree.Root(), revocationsTree.Root(), rootsTree.Root(), authClaim)
+	err = persistGenesisState(*nameStr, id, claimsTree.Root(), revocationsTree.Root(), rootsTree.Root(), &authClaimAndProofs{
+		AuthClaim:               *authClaim,
+		AuthClaimMtpBytes:       authMTProof.Bytes(),
+		AuthClaimNonRevMtpBytes: authNonRevMTProof.Bytes(),
+	})
 	assertNoError(err)
 
 	updateIdentifyLookupFile(*nameStr, id.String())
