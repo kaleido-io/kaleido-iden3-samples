@@ -35,14 +35,14 @@ import (
 // Captures the properties needed to prove the identity of the issuer
 // and it hasn't been revoked
 type issuerState struct {
+	AuthClaimMtpBytes       []byte           `json:"authClaimMtpBytes,omitempty"`
+	AuthClaimNonRevMtpBytes []byte           `json:"authClaimNonRevMtpBytes,omitempty"`
+	AuthClaimMtp            []string         `json:"authClaimMtp,omitempty"`
+	AuthClaimNonRevMtp      []string         `json:"authClaimNonRevMtp,omitempty"`
+	AuthClaimNonRevMtpAuxHi *merkletree.Hash `json:"authClaimNonRevMtpAuxHi,omitempty"`
+	AuthClaimNonRevMtpAuxHv *merkletree.Hash `json:"authClaimNonRevMtpAuxHv,omitempty"`
+	AuthClaimNonRevMtpNoAux string           `json:"authClaimNonRevMtpNoAux,omitempty"`
 	AuthClaim               core.Claim       `json:"authClaim"`
-	AuthClaimMtp            []string         `json:"authClaimMtp"`
-	AuthClaimNonRevMtp      []string         `json:"authClaimNonRevMtp"`
-	AuthClaimMtpBytes       []byte           `json:"authClaimMtpBytes"`
-	AuthClaimNonRevMtpBytes []byte           `json:"authClaimNonRevMtpBytes"`
-	AuthClaimNonRevMtpAuxHi *merkletree.Hash `json:"authClaimNonRevMtpAuxHi"`
-	AuthClaimNonRevMtpAuxHv *merkletree.Hash `json:"authClaimNonRevMtpAuxHv"`
-	AuthClaimNonRevMtpNoAux string           `json:"authClaimNonRevMtpNoAux"`
 	UserID                  string           `json:"userID"`
 	IDState                 *merkletree.Hash `json:"newUserState"`
 	ClaimsTreeRoot          *merkletree.Hash `json:"claimsTreeRoot"`
@@ -50,16 +50,28 @@ type issuerState struct {
 	RootsTreeRoot           *merkletree.Hash `json:"rootsTreeRoot"`
 }
 
+type authClaimAndProofs struct {
+	AuthClaim               core.Claim `json:"authClaim"`
+	AuthClaimMtpBytes       []byte     `json:"authClaimMtpBytes,omitempty"`
+	AuthClaimNonRevMtpBytes []byte     `json:"authClaimNonRevMtpBytes,omitempty"`
+}
+
 type stateTransitionInputs struct {
-	NewIdState        *merkletree.Hash `json:"newUserState"`
-	OldIdState        *merkletree.Hash `json:"oldUserState"`
-	IsOldStateGenesis string           `json:"isOldStateGenesis"`
-	ClaimsTreeRoot    *merkletree.Hash `json:"claimsTreeRoot"`
-	RevTreeRoot       *merkletree.Hash `json:"revTreeRoot"`
-	RootsTreeRoot     *merkletree.Hash `json:"rootsTreeRoot"`
-	SignatureR8X      string           `json:"signatureR8x"`
-	SignatureR8Y      string           `json:"signatureR8y"`
-	SignatureS        string           `json:"signatureS"`
+	AuthClaim               core.Claim       `json:"authClaim"`
+	AuthClaimMtp            []string         `json:"authClaimMtp"`
+	AuthClaimNonRevMtp      []string         `json:"authClaimNonRevMtp"`
+	AuthClaimNonRevMtpAuxHi *merkletree.Hash `json:"authClaimNonRevMtpAuxHi"`
+	AuthClaimNonRevMtpAuxHv *merkletree.Hash `json:"authClaimNonRevMtpAuxHv"`
+	AuthClaimNonRevMtpNoAux string           `json:"authClaimNonRevMtpNoAux"`
+	NewIdState              *merkletree.Hash `json:"newUserState"`
+	OldIdState              *merkletree.Hash `json:"oldUserState"`
+	IsOldStateGenesis       string           `json:"isOldStateGenesis"`
+	ClaimsTreeRoot          *merkletree.Hash `json:"claimsTreeRoot"`
+	RevTreeRoot             *merkletree.Hash `json:"revTreeRoot"`
+	RootsTreeRoot           *merkletree.Hash `json:"rootsTreeRoot"`
+	SignatureR8X            string           `json:"signatureR8x"`
+	SignatureR8Y            string           `json:"signatureR8y"`
+	SignatureS              string           `json:"signatureS"`
 }
 
 type ClaimInputs struct {
@@ -122,12 +134,17 @@ func updateIdentifyLookupFile(identifyName string, identifyID string) {
 }
 
 // the genesis state is used for proving an identity's auth claim when generating any proof
-func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, rootsTreeRoot *merkletree.Hash, authClaim *core.Claim, authMTProof, authNonRevMTProof *merkletree.Proof) error {
+func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, rootsTreeRoot *merkletree.Hash, authClaimProof *authClaimAndProofs) error {
 	state, _ := merkletree.HashElems(claimsTreeRoot.BigInt(), revTreeRoot.BigInt(), rootsTreeRoot.BigInt())
+	authMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimMtpBytes)
+	assertNoError(err)
+
+	authNonRevMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimNonRevMtpBytes)
+	assertNoError(err)
 	key, value, noAux := getNodeAuxValue(authNonRevMTProof.NodeAux)
 	a := circuits.AtomicQuerySigInputs{}
 	genState := issuerState{
-		AuthClaim:               *authClaim,
+		AuthClaim:               authClaimProof.AuthClaim,
 		AuthClaimMtp:            circuits.PrepareSiblingsStr(authMTProof.AllSiblings(), a.GetMTLevel()),
 		AuthClaimMtpBytes:       authMTProof.Bytes(),
 		AuthClaimNonRevMtp:      circuits.PrepareSiblingsStr(authNonRevMTProof.AllSiblings(), a.GetMTLevel()),
@@ -145,7 +162,7 @@ func persistGenesisState(name string, id *core.ID, claimsTreeRoot, revTreeRoot, 
 	homedir, _ := os.UserHomeDir()
 	outputFile := filepath.Join(homedir, fmt.Sprintf("iden3/%s/genesis_state.json", name))
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
-	err := os.WriteFile(outputFile, inputBytes, 0644)
+	err = os.WriteFile(outputFile, inputBytes, 0644)
 	if err != nil {
 		return err
 	}
@@ -180,7 +197,7 @@ type TreeStates struct {
 	New *TreeState `json:"new"`
 }
 
-func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, oldTreeState circuits.TreeState, privKey babyjub.PrivateKey) error {
+func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, oldTreeState circuits.TreeState, privKey babyjub.PrivateKey, authClaimProof *authClaimAndProofs, isGenesis bool) error {
 	// construct the new identity state
 	fmt.Println("Calculate the new state")
 	newState, err := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
@@ -196,19 +213,33 @@ func persistNewState(name string, claimsTree, revocationsTree, rootsTree *merkle
 	// construct the inputs to feed to the proof generation for the state transition
 	fmt.Println("-> state transition from old to new")
 	isOldStateGenesis := "0"
-	if oldTreeState.RevocationRoot.String() == "0" && oldTreeState.RootOfRoots.String() == "0" {
+	if isGenesis {
 		isOldStateGenesis = "1"
 	}
+
+	authMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimMtpBytes)
+	assertNoError(err)
+
+	authNonRevMTProof, err := merkletree.NewProofFromBytes(authClaimProof.AuthClaimNonRevMtpBytes)
+	assertNoError(err)
+	key, value, noAux := getNodeAuxValue(authNonRevMTProof.NodeAux)
+	a := circuits.AtomicQuerySigInputs{}
 	stateTransitionInputs := stateTransitionInputs{
-		NewIdState:        newState,
-		OldIdState:        oldTreeState.State,
-		IsOldStateGenesis: isOldStateGenesis,
-		ClaimsTreeRoot:    oldTreeState.ClaimsRoot,
-		RevTreeRoot:       oldTreeState.RevocationRoot,
-		RootsTreeRoot:     oldTreeState.RootOfRoots,
-		SignatureR8X:      signature.R8.X.String(),
-		SignatureR8Y:      signature.R8.Y.String(),
-		SignatureS:        signature.S.String(),
+		AuthClaim:               *&authClaimProof.AuthClaim,
+		AuthClaimMtp:            circuits.PrepareSiblingsStr(authMTProof.AllSiblings(), a.GetMTLevel()),
+		AuthClaimNonRevMtp:      circuits.PrepareSiblingsStr(authNonRevMTProof.AllSiblings(), a.GetMTLevel()),
+		AuthClaimNonRevMtpAuxHi: key,
+		AuthClaimNonRevMtpAuxHv: value,
+		AuthClaimNonRevMtpNoAux: noAux,
+		NewIdState:              newState,
+		OldIdState:              oldTreeState.State,
+		IsOldStateGenesis:       isOldStateGenesis,
+		ClaimsTreeRoot:          oldTreeState.ClaimsRoot,
+		RevTreeRoot:             oldTreeState.RevocationRoot,
+		RootsTreeRoot:           oldTreeState.RootOfRoots,
+		SignatureR8X:            signature.R8.X.String(),
+		SignatureR8Y:            signature.R8.Y.String(),
+		SignatureS:              signature.S.String(),
 	}
 
 	homedir, _ := os.UserHomeDir()
