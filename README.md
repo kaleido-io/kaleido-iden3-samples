@@ -1,22 +1,26 @@
 # kaleido-iden3-samples
 
-Sample code for using the iden3 protocol to issue verifiable claims and verify them.
+Sample code for using the [Iden3 protocol](https://docs.iden3.io/protocol/spec/) to issue verifiable claims and verify them.
 
 # Getting Started
 
 The sample covers the 3 roles involved in a typical Self Sovereign Identity use case:
 
-- issuer: to create their own identity and issue claims to a target holder
-- holder: to create their own identity, receive a claim issued by the issuer, and generate a proof for the claim when challenged by the verifier
-- verifier: to challenge the holder for the proof of their possession of a claim, by using a zero knowledge query
+- **Issuer**: to create their own identity and issue claims to a target holder
+- **Holder**: to create their own identity, receive a claim issued by the issuer, and generate a proof for the claim when challenged by the verifier
+- **Verifier**: to challenge the holder for the proof of their possession of a claim, by using a zero knowledge query
 
-## Create An Identity
+## Create an Identity
 
 The issuer and the holder must first create their identity. This is accomplished with the Golang program in the `identity` folder, with the subcommand `init`.
 
 ```
-cd identity
-go run main.go init --name JohnDoe
+$ cd identity
+$ go run main.go init --name JohnDoe
+```
+
+Example output:
+```
 Generating new signing key from the "babyjubjub" curve
 -> Public key: dc743d5a062212f859c818c694bd1ee8bd5697d8cd9600da33b52c65a240cc82
 
@@ -41,25 +45,37 @@ Calculate the new state
 -> State transition input bytes written to the file: /Users/jimzhang/iden3/JohnDoe/stateTransition_inputs.json
 ```
 
-For each identity, the program creates the following resources:
+For each identity, the program creates the following resources under the `$HOMEDIR/iden3/` folder:
 
-- $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity, including:
-  - **private.key**: the private key for the identity (on the babyjubjub curve)
-  - **genesis_state.json**: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
-  - **claims/revocations/roots.db**: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.
-  - **stateTransition_inputs.json**: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities. Input file for [Proof Generation and Update OnChain State](#proof-generation-and-update-onchain-state)
-  - **treeStates.json**: this json file contains an old state (genesis state OR the state recorded on chain) and a new state (the current state calculated locally to be recorded on chain)
-- $HOMEDIR/iden3/identities.json: this file contains a lookup table of identity name and IDs. It gets updated whenever a new identify is created.
+- identity name (e.g. `JohnDoe/`): this folder holds the resources specific to the identity, including:
+  - `private.key`: the private key for the identity (on the [Baby Jubjub](https://docs.iden3.io/getting-started/babyjubjub/) curve)
+  - `genesis_state.json`: the genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
+  - `claims/revocations/roots.db`: sqlite DB files that store the Claims, Revocation and Roots Merkle trees of the identity.
+  - `stateTransition_inputs.json`: the inputs to generate a zero knowledge proof for the state transition method on the smart contract that maintains the public registry of issuer identities. Input file for [Proof Generation and Update OnChain State](#proof-generation-and-update-onchain-state)
+  - `treeStates.json`: this json file contains an old state (genesis state OR the state recorded on chain) and a new state (the current state calculated locally to be recorded on chain)
+- `identities.json`: this file contains a lookup table of identity name and IDs. It gets updated whenever a new identify is created.
 
-Use the `init` subcommand to generate at least two identities, one as the issuer, and one as the holder.
+Use the `init` subcommand to generate at least two identities, one as the issuer, and one as the holder. The sections below use JohnDoe as the issuer and AliceWonder as the holder, so create an identity for AliceWonder and take note of the ID:
 
-## Publish Identity States to a registry
+```
+$ go run main.go init --name AliceWonder
+```
+
+Example output:
+```
+...
+-> ID of the generated identity: 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS
+...
+```
+
+
+## Issuer Publishes Identity State to a Registry
 
 The identity state of the issuer should be published to a registry so that verifiers can use it to validate claims. A smart contract based registry has been provided and can be deployed using the Hardhat script.
 
-The iden3 `State.sol` contract, and its dependencies, implements an identity registry. An issuer should register its identity state with the contract, by calling the `transitState()` function, which requires a zero knowledge proof of the addition of the auth claim of the issuer to the merkle tree.
+The Iden3 `State.sol` contract, and its dependencies, implements an identity registry. An issuer should register its identity state with the contract, by calling the `transitState()` function, which requires a zero knowledge proof of the addition of the auth claim of the issuer to the Merkle tree.
 
-### Publish the iden3 State Contract
+### Publish the Iden3 State contract
 
 To publish the State contract, use the `deploy.js` script in the Hardhat project in the folder `issuer/upload-claims`.
 
@@ -71,38 +87,46 @@ export KALEIDO_NODE_URL=https://username:password@u0nc4noce4-u0c5qcrhgs-rpc.us0-
 
 > You can also use the Polygon Mumbai test network as the target, with `--network mumbai`. Set the environment variables `MUMBAI_NODE_URL` and `MUMBAI_PRIV_KEY` accordingly. If you use this option, there's no need to deploy the smart contract. You can use the contract that's already been deployed to Mumbai.
 
+```shell
+npx hardhat run scripts/deploy.js --network kaleido
 ```
-$ npx hardhat run scripts/deploy.js --network kaleido
+
+Example output:
+```
 deploying verifier
 deploying state
 Verifier contract deployed to 0x2442dD31Bb4c5df7AEA41dC1AE98B8f806CE4375 from 0x6b2807d1074ae6E1ab022E1bdb7C0C8C1Eff1BDF
 State contract deployed to 0xe4BAd4a8636d79E918fFA9Db72502fCf56a77D2D from 0x6b2807d1074ae6E1ab022E1bdb7C0C8C1Eff1BDF
 ```
 
-The result, in particular the State contract address, is persisted in a file ($HOME_DIR/iden3_deploy_output.json) that will be read by the next program.
+The result, in particular the State contract address, is persisted in a file (`$HOME_DIR/iden3/deploy_output.json`) that will be read by the next program.
 
-### Proof Generation and Update OnChain State
+### Generate proof and update on-chain state
 
-Next we want to publish the transition from the nil state to the genesis state that includes the issuer's auth claim in the merkle tree, to the [iden3 smart contract](./issuer/upload-claims/contracts/State.sol). The smart contract function `transitState()` takes the public inputs (issuer ID, old state and new state) and the proof, verifies the proof and then update the state for the issuer ID to the new state.
+Next we want to publish the transition from the nil state to the genesis state, including the issuer's auth claim in the Merkle tree, to the [State smart contract](./issuer/upload-claims/contracts/State.sol). The smart contract function `transitState()` takes the public inputs (issuer ID, old state and new state) and the proof, verifies the proof and then updates the state for the issuer ID to the new state.
 
-> Note that the state published to the smart contract is the hash of the latest markle tries `hash(claims_root, revocation_root, roots_root)`. This means that care should be taken when designing the claim schemas. No PII _should_ be part of the claim because hashes of PII is still considered PII under some regulations such as GDPR ([details](https://legalconsortium.org/uncategorized/how-does-the-eus-gdpr-view-hashed-data-on-the-blockchain/#:~:text=The%20GDPR%20does%20not%20apply,linkability%E2%80%9D%20of%20an%20unreadable%20hash) available here).
+> Note that the state published to the smart contract is the hash of the latest Merkle trees: `hash(claims_root, revocation_root, roots_root)`. This means that care should be taken when designing the claim schemas. No PII _should_ be part of the claim because a hash of PII is still considered PII under some regulations such as GDPR ([details](https://legalconsortium.org/uncategorized/how-does-the-eus-gdpr-view-hashed-data-on-the-blockchain/#:~:text=The%20GDPR%20does%20not%20apply,linkability%E2%80%9D%20of%20an%20unreadable%20hash) available here).
 
-We use snarkjs to generate the state transition proof, from the nil state to the genesis state, and upload the states with the proof to the smart contract in order to update the onchain state for the identity.
+We use the snarkjs library to generate the state transition proof, from the nil state to the genesis state, and upload the states with the proof to the smart contract in order to update the onchain state for the identity.
 
-This step uses the output of the golang program as the input to the proof generation. It's based on a [pre-compiled circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/stateTransition.circom) for the state transition.
+This step uses the output of the Golang program as the input to the proof generation. It's based on a [pre-compiled circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/stateTransition.circom) for the state transition.
 
 For successful runs, the program may create new resources in the identify folder. Using JohnDoe as example:
 
-- $HOMEDIR/iden3/JohnDoe: this folder holds the resources specific to the identity:
-  - **stateTransition_inputs_previous.json**: if a state transition is successfully applied, the input file `stateTransition_inputs.json` will be renamed to `stateTransition_inputs_previous.json`
-  - **treeStates_previous.json**: if a state transition is successfully applied, the tree state record file `treeStates.json` will be renamed to `treeStates_previous.json`
-  - **archived_transitions**: when more than 2 state transitions have been executed, all historical transition input and tree states files will be archived into this folder with a timestamp prefix for record purpose.
+- `$HOMEDIR/iden3/JohnDoe`: this folder holds the resources specific to the identity:
+  - `stateTransition_inputs_previous.json`: if a state transition is successfully applied, the input file `stateTransition_inputs.json` will be renamed to `stateTransition_inputs_previous.json`
+  - `treeStates_previous.json`: if a state transition is successfully applied, the tree state record file `treeStates.json` will be renamed to `treeStates_previous.json`
+  - `archived_transitions/` folder: when more than 2 state transitions have been executed, all historical transition input and tree states files will be archived into this folder with a timestamp prefix for record purpose.
 
-With the `IDEN3_NAME` set to `JohnDoe`, we tell the program to publish the state of JohnDoe on chain, which will be act as the issuer in the later tutorial.
+With the `IDEN3_NAME` env var set to `JohnDoe`, we run the script to publish the state of JohnDoe on-chain. This identity will act as the issuer in later steps. In the `issuer/upload-claims` folder, run:
 
 ```
 $ export IDEN3_NAME=JohnDoe
 $ npx hardhat run scripts/upload-state-transition.js --network kaleido
+```
+
+Example output:
+```
 {
   authClaim: [
     '304427537360709784173770334266246861770',
@@ -153,61 +177,69 @@ Invoking state transaction on chain ...
 State after transaction:  BigNumber { value: "4415121770339690351530166661455105854178222280927373194615248123084196097920" }
 ```
 
-## Issue Claims
+## Issuer Issues a Claim
 
-To issue a claim, use the Golang program with the subcommand `claim`.
+To issue a claim, go back to the `identity` folder and run the Golang program with the subcommand `claim`.
 
 ```
-$ go run main.go claim --issuer JohnDoe --holder 117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32 --nonce 2
+$ go run main.go claim --issuer JohnDoe --holder 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS --nonce 2
+```
+
+Here,
+- `--issuer JohnDoe` indicates to use the private key for `JohnDoe` as the issuer of the claim.
+- `--holder 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS` indicates the public user ID of the holder to issue the claim to (AliceWonder's ID in this example). This string is printed in the output of the `init` command. It can also be found in `~/iden3/identities.json` file.
+- `--nonce 2` indicates to use the revocation nonce `2` for the claim. Every claim must have a unique nonce that is used to validate if the claim has been revoked or not.
+
+Example output:
+```
 Using issuer identity with name:  JohnDoe
-Using holder identity:  117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32
+Using holder identity:  11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS
 Using revocation nonce for the new claim:  2
 Loading issuer identity
 -> Issuer private key successfully loaded
 Loading issuer ID
--> Issuer identity:  11AmRzsJt9cWVYCs8xNbBnHdLB14ubKLAvqsYsyD35
+-> Issuer identity:  117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32
 Loading issuer state
 Load the issuer claims merkle tree
 Load the revocations merkle tree
 Load the roots merkle tree
 Issue the KYC age claim
 -> Schema hash for 'KYCAgeCredential': 295816c03b74e65ac34e5c6dda3c753b
--> Issued age claim: ["759597918575796644664644898807048722473","171461361565191151824690974871439449294142670051513093660327757037227933696","25","0","2","0","0","0"]
+-> Issued age claim: ["759597918575796644664644898807048722473","26592700288876761065000893541725655075004149209048876525164078085327486976","19950704","0","2","0","0","0"]
 -> Add the age claim to the claims tree
 
--> Input bytes for issued user claim written to the file: /Users/jimzhang/iden3/JohnDoe/claims/2-117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32.json
+-> Input bytes for issued user claim written to the file: /Users/jimzhang/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json
+Add the current claim tree root to the roots tree
+Calculate the new state
+-> state transition from old to new
+-> State transition input bytes written to the file: /Users/jimzhang/iden3/JohnDoe/stateTransition_inputs.json
+-> Tree states written into file: /Users/jimzhang/iden3/JohnDoe/treeStates.json
 ```
-
-With the `--issuer JohnDoe` parameter, we tell the program to use the private key inside the folder `JohnDoe` as the issuer of the claim.
-
-With the `--holder 117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32` paramter, we tell the program that the holder to issue the claim to is `117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32`, which is the holder's public user ID. This string is printed in the output of the `init` command. It can also be found in `~/iden3/identities.json` file.
-
-With the `--nonce 2` parameter, we tell the program to use the revocation nonce `2` for the claim. Every claim must have a nonce that is used to validate if the claim has been revoked or not.
 
 The issued claim is persisted in the folder `iden3/JohnDoe/claims`. The file name is `[nonce]-[holder user ID].json`.
 
-## Copy The Claim to the Holder's "Wallet"
+## Holder "Downloads" the Claim to their "Wallet"
 
-A real holder's wallet is typically a mobile app. In this sample, we use the Golang program to manage the resources in the identity's dedicated folder, minicing the holder's wallet.
+A real holder's wallet is typically a mobile app. In this sample, we use the Golang program to manage the resources in the identity's dedicated folder, mimicking the holder's wallet.
 
 To mimic the transfer of the claim from the issuer's server to the holder's wallet, simply copy the claim file created in the previous step, to a `received-claims` folder of the holder.
 
 For instance, if the issuer's name is `JohnDoe`, and the holder's name is `AliceWonder`:
 
 ```
-mkdir ~/iden3/AliceWonder/received-claims
-cp ~/iden3/JohnDoe/claims/2-117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32.json ~/iden3/AliceWonder/received-claims/
+$ mkdir ~/iden3/AliceWonder/received-claims
+$ cp ~/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json ~/iden3/AliceWonder/received-claims/
 ```
 
-## Verifier To Launch the Claim Challenge Site
+## Verifier Presents a Claim Challenge
 
 The verifier wants to request the holder to present a proof for a condition that the verifier is interested in. The current communication between the verifier and the holder is conducted via QR code.
 
-The verifier expresses the condition using the [iden3 proof query language](https://docs.iden3.io/protocol/querylanguage/), and then wrap it inside a request object which then gets encoded into a QR code.
+The verifier expresses the condition using the [Iden3 proof query language](https://docs.iden3.io/protocol/querylanguage/), wraps it in a request object, and encodes this in a QR code.
 
 The QR code is presented in the verifier's web site, which the holder can scan to obtain the proof request. Based on the query request decoded from the QR code, the holder can then generate the proof accordingly.
 
-To launch the sample verifier's web site, go to the `verifier/server` folder:
+To launch the sample verifier's web site, go to the `verifier/server` folder and run:
 
 ```
 $ npm i
@@ -254,14 +286,23 @@ Here's the sample proof request:
 }
 ```
 
-## Holder To Respond To Challenge For A Claim
+## Holder Responds to the Claim Challenge
 
 Now, acting as the holder, we can use the Golang program's `respond-to-challenge` subcommand to generate the necessary inputs for the zero knowledge proof, responding to the challenge by the verifier. In the sample code, the challenge was for a proof that the age claim has a `birthdate` attribute with a value less than `20000101`.
 
-Before launching the command, save the QR code image from the web site to a **PNG or JPEG file** (In the real world, the holder would use the wallet app to scan the QR code.)
+Before running the command, save the QR code image from the web site to a **PNG or JPEG file** (in the real world, the holder would use the wallet app to scan the QR code).
 
 ```
 $ go run main.go respond-to-challenge --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
+```
+
+Here,
+- `--holder AliceWonder` indicates to use the private key and the Merkle tree of the identity `AliceWonder`,
+- `--qrcode <file>` indicates to decode the proof request from the QR code image file, and
+- `--challenge 12345` indicates to sign the unique challenge nonce `12345`, which is an alternative to using the QR code
+
+Example output:
+```
 Using the challenge &{Message:12345 Scope:{CircuitID:credentialAtomicQuerySig Queries:[{Property:birthdate Operator:2 Value:2.0000101e+07}]}} decoded from the QR Code
 Loading holder state
 Load the issuer claims merkle tree
@@ -273,16 +314,12 @@ Loading holder ID
 Challenge response inputs written to the file: /Users/jimzhang/iden3/AliceWonder/challenge.json
 ```
 
-`--holder AliceWonder` tells the program to use the private key and the merkletree of the identity `AliceWonder`.
-`--qrcode <file>` tells the program to decode the proof request from the QR code image file
-`--challenge 12345` tells the program to sign the unique challenge nonce `12345`, which is an alternative to using the QR code
-
 ## Generate the Zero Knowledge Proof for the Claim Challenge
 
 We use snark.js again to generate the proof, using the inputs that have been generated in the above step.
 
 ```
-cd holder/wallet
-npm i
-node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
+$ cd holder/wallet
+$ npm i
+$ node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
 ```
