@@ -53,7 +53,7 @@ function archiveOldFiles () {
 
 async function main() {
   if (!fs.existsSync(zkinputJson)) {
-    throw new Error(`Not state transition input file found for ${identityName} under: ${zkinputJson}`);
+    throw new Error(`No state transition input file found for ${identityName} at: ${zkinputJson}`);
   }
   archiveOldFiles();
   let stateContractAddress;
@@ -72,7 +72,7 @@ async function main() {
 
   // gather the inputs for generating the proof
   if (!fs.existsSync(zkinputJson)) {
-    console.log(`State transition skipped as new state detected - no state input file found under location ${zkinputJson}`)
+    console.log(`State transition skipped as new state detected - no state input file found at: ${zkinputJson}`)
     process.exit(0)
   }
   let genesisInfo = JSON.parse(fs.readFileSync(genesisJson));
