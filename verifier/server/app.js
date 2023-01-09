@@ -4,7 +4,7 @@ const { auth, resolver, loaders } = require('@iden3/js-iden3-auth');
 const getRawBody = require('raw-body');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
-const argv = yargs(hideBin(process.argv)).argv;
+const argv = yargs(hideBin(process.argv)).option('state-contract', { string: true }).argv;
 
 let publicHost = argv['public-host'];
 if (!publicHost) {
@@ -12,6 +12,18 @@ if (!publicHost) {
   publicHost = 'http://localhost:8080';
 } else {
   publicHost = publicHost.replace(/\/+$/, '');
+}
+
+let jsonrpcUrl = argv['jsonrpc-url'];
+if (!jsonrpcUrl) {
+  console.error('Must provide the URL of the JSON-RPC endpoint for the blockchain that hosts the State contract, with the --jsonrpc-url parameter');
+  process.exit(1);
+}
+
+let stateContract = argv['state-contract'];
+if (!stateContract) {
+  console.error('Must provide the address of the State contract, with the --state-contract parameter');
+  process.exit(1);
 }
 
 const app = express();
@@ -43,7 +55,7 @@ async function getQR(req, res) {
   const callbackURL = '/api/callback';
   const audience = '1125GJqgw6YEsKFwj63GY87MMxPL9kwDKxPUiwMLNZ';
   const schemaUrl = 'https://schema.polygonid.com/jsonld/kyc.json-ld';
-  const schemaType = 'KYCAgeCredential';
+  const schemaType = 'AgeCredential';
   const circuitId = 'credentialAtomicQuerySig';
 
   const uri = `${publicHost}${callbackURL}?sessionId=${sessionId}`;
@@ -103,7 +115,7 @@ async function callback(req, res) {
   const sLoader = new loaders.UniversalSchemaLoader('ipfs.io');
 
   // Add Polygon RPC node endpoint - needed to read on-chain state and identity state contract address
-  const ethStateResolver = new resolver.EthStateResolver('https://polygon-mainnet.g.alchemy.com/v2/bWaWfKLExAb_SZC_JUSNY6a6cCZGsTpb', '0xb8a86e138C3fe64CbCba9731216B1a638EEc55c8');
+  const ethStateResolver = new resolver.EthStateResolver(jsonrpcUrl, stateContract);
 
   // EXECUTE VERIFICATION
   const verifier = new auth.Verifier(verificationKeyloader, sLoader, ethStateResolver);
