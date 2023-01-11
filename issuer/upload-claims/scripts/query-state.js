@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const { utils } = require('ffjavascript');
 const hre = require('hardhat');
 const ethers = hre.ethers;
 const os = require('os');
