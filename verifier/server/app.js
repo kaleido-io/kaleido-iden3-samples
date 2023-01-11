@@ -69,7 +69,7 @@ async function getQR(req, res) {
 
   // Add request for a specific proof
   const proofRequest = {
-    id: 1,
+    id: challenge,
     circuit_id: circuitId,
     rules: {
       query: {
@@ -121,7 +121,7 @@ async function callback(req, res) {
   const verifier = new auth.Verifier(verificationKeyloader, sLoader, ethStateResolver);
 
   try {
-    authResponse = await verifier.verifyAuthResponse(authResponse, authRequest);
+    await verifier.verifyAuthResponse(authResponse, authRequest);
   } catch (error) {
     return res.status(500).send(error);
   }
