@@ -5,6 +5,7 @@ const Jimp = require('jimp');
 const jsQR = require('jsqr');
 const { v4: uuidv4 } = require('uuid');
 const { protocol } = require('@iden3/js-iden3-auth');
+const { Id } = require('@iden3/js-iden3-core');
 const { AUTHORIZATION_RESPONSE_MESSAGE_TYPE } = protocol;
 const axios = require('axios');
 const yargs = require('yargs/yargs');
@@ -216,7 +217,7 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
     thid: challengeRequest.thid,
     typ: challengeRequest.typ,
     type: AUTHORIZATION_RESPONSE_MESSAGE_TYPE,
-    from: holderId,
+    from: Id.fromBigInt(BigInt(holderId)).string(),
     to: challengeRequest.from,
     body: {
       message: challengeRequest.body.message,
