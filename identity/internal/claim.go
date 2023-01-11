@@ -170,6 +170,10 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	ageHashIndex, ageHashValue, _ := ageClaim.HiHv()
 	claimsTree.Add(ctx, ageHashIndex, ageHashValue)
 
+	fmt.Printf("-> Add the current claim tree root to the roots tree\n")
+	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
+	assertNoError(err)
+
 	// persists the input for the validity of the issuer identity against the latest state tree
 	a := circuits.AtomicQuerySigInputs{}
 
@@ -245,10 +249,6 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
 	os.WriteFile(outputFile, inputBytes, 0644)
 	fmt.Printf("-> Input bytes for issued user claim written to the file: %s\n", outputFile)
-
-	fmt.Printf("Add the current claim tree root to the roots tree\n")
-	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
-	assertNoError(err)
 
 	err = persistNewState(issuer, claimsTree, revocationsTree, rootsTree, issuerRecordedTreeState, *privKey, &authClaimAndProofs{
 		AuthClaim:               issuerPreviousState.AuthClaim,
