@@ -246,9 +246,14 @@ To launch the sample verifier's web site, go to the `verifier/server` folder and
 
 ```
 $ npm i
-$ node app.js
+$ node app.js --jsonrpc-url https://[appcred]:[password]@u0nc4abdk4-u0c5xarhgs-rpc.us0-aws.kaleido.io --state-contract 0xe4bad4a8636d79e918ffa9db72502fcf56a77d2d
 server running on port 8080
 ```
+
+Here,
+
+- `--jsonrpc-url` indicates the blockchain node for the state resolver to contact in order to get the latest state to verify the proof responses against
+- `--state-contract` indicates the `State.sol` contract address that captures the issuer's latest state
 
 Point your browser at the URL `http://localhost:8080`, then click the "Sign In" button to display the QR code which encodes the proof request.
 
