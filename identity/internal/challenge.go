@@ -284,7 +284,7 @@ func decodeQRImage(imageFile string) (map[string]interface{}, error) {
 
 	// decode image
 	qrReader := qrcode.NewQRCodeReader()
-	result, err := qrReader.Decode(bmp, nil)
+	result, err := qrReader.DecodeWithoutHints(bmp)
 	if err != nil {
 		fmt.Println("Failed to decode QR image.", err)
 		return nil, err

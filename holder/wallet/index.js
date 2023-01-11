@@ -3,6 +3,11 @@ const os = require('os');
 const path = require('path');
 const Jimp = require('jimp');
 const jsQR = require('jsqr');
+const { v4: uuidv4 } = require('uuid');
+const { protocol } = require('@iden3/js-iden3-auth');
+const { Id } = require('@iden3/js-iden3-core');
+const { AUTHORIZATION_RESPONSE_MESSAGE_TYPE } = protocol;
+const axios = require('axios');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 const argv = yargs(hideBin(process.argv)).argv;
@@ -112,8 +117,9 @@ async function generateProof(challenge) {
 
   const queryRequest = challenge.body.scope[0].rules.query.req;
   const queryProperty = Object.keys(queryRequest)[0];
-  if (queryProperty != 'birthdate') {
-    throw new Error(`As of now only the 'birthdate' property is supported in the challenge query. Had ${queryProperty}`);
+  if (queryProperty != 'birthDay') {
+    const msg = `As of now only the 'birthDay' property is supported in the challenge query. Had ${queryProperty}`;
+    throw new Error(msg);
   }
   const queryExp = queryRequest[queryProperty];
   const exp = Object.entries(queryExp)[0];
@@ -196,6 +202,54 @@ async function generateProof(challenge) {
   await generateWitness(inputs);
   const { proof, publicSignals } = await prove();
   await verify(proof, publicSignals);
+  await sendCallback(challenge, proof, publicSignals, holderInputs.userID);
+}
+
+async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
+  const zkresponse = {
+    id: challengeRequest.body.scope[0].id,
+    circuit_id: challengeRequest.body.scope[0].circuit_id,
+    proof,
+    pub_signals: publicSignals,
+  };
+  const challengeResponse = {
+    id: uuidv4(),
+    thid: challengeRequest.thid,
+    typ: challengeRequest.typ,
+    type: AUTHORIZATION_RESPONSE_MESSAGE_TYPE,
+    from: Id.fromBigInt(BigInt(holderId)).string(),
+    to: challengeRequest.from,
+    body: {
+      message: challengeRequest.body.message,
+      scope: [zkresponse],
+    },
+  };
+
+  const url = challengeRequest.body.callbackUrl;
+  console.log('Sending callback to', url);
+  try {
+    const result = await axios({
+      method: 'post',
+      url,
+      data: challengeResponse,
+    });
+  } catch (error) {
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.log('error data', error.response.data);
+      console.log('error status', error.response.status);
+      console.log('error headers', error.response.headers);
+    } else if (error.request) {
+      // The request was made but no response was received
+      // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+      // http.ClientRequest in node.js
+      console.log(error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.log('Error', error.message);
+    }
+  }
 }
 
 function translateOperator(op) {

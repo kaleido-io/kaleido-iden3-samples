@@ -138,19 +138,19 @@ func IssueClaim() {
 
 	fmt.Println("Issue the KYC age claim")
 	// Load the schema for the KYC claims
-	schemaBytes, _ := os.ReadFile("./schemas/test.json-ld")
+	schemaBytes, _ := os.ReadFile("./schemas/kyc.json-ld")
 	var sHash core.SchemaHash
 
 	// issue the age claim
-	h := keccak256.Hash(schemaBytes, []byte("KYCAgeCredential"))
+	h := keccak256.Hash(schemaBytes, []byte("AgeCredential"))
 	copy(sHash[:], h[len(h)-16:])
 	sHashText, _ := sHash.MarshalText()
 	ageSchemaHash := string(sHashText)
-	fmt.Println("-> Schema hash for 'KYCAgeCredential':", ageSchemaHash)
+	fmt.Println("-> Schema hash for 'AgeCredential':", ageSchemaHash)
 
 	kycAgeSchema, _ := core.NewSchemaHashFromHex(ageSchemaHash)
-	birthdate := big.NewInt(19950704)
-	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthdate, nil), core.WithRevocationNonce(*revNonce))
+	birthDay := big.NewInt(19950704)
+	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthDay, nil), core.WithRevocationNonce(*revNonce))
 	// kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Lionel Messi"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
 	encoded, _ := json.MarshalIndent(ageClaim, "", "  ")
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
@@ -169,6 +169,10 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	fmt.Printf("-> Add the age claim to the claims tree\n\n")
 	ageHashIndex, ageHashValue, _ := ageClaim.HiHv()
 	claimsTree.Add(ctx, ageHashIndex, ageHashValue)
+
+	fmt.Printf("-> Add the current claim tree root to the roots tree\n")
+	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
+	assertNoError(err)
 
 	// persists the input for the validity of the issuer identity against the latest state tree
 	a := circuits.AtomicQuerySigInputs{}
@@ -245,10 +249,6 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
 	os.WriteFile(outputFile, inputBytes, 0644)
 	fmt.Printf("-> Input bytes for issued user claim written to the file: %s\n", outputFile)
-
-	fmt.Printf("Add the current claim tree root to the roots tree\n")
-	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
-	assertNoError(err)
 
 	err = persistNewState(issuer, claimsTree, revocationsTree, rootsTree, issuerRecordedTreeState, *privKey, &authClaimAndProofs{
 		AuthClaim:               issuerPreviousState.AuthClaim,

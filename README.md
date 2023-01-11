@@ -20,6 +20,7 @@ $ go run main.go init --name JohnDoe
 ```
 
 Example output:
+
 ```
 Generating new signing key from the "babyjubjub" curve
 -> Public key: dc743d5a062212f859c818c694bd1ee8bd5697d8cd9600da33b52c65a240cc82
@@ -62,12 +63,12 @@ $ go run main.go init --name AliceWonder
 ```
 
 Example output:
+
 ```
 ...
 -> ID of the generated identity: 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS
 ...
 ```
-
 
 ## Issuer Publishes Identity State to a Registry
 
@@ -92,6 +93,7 @@ npx hardhat run scripts/deploy.js --network kaleido
 ```
 
 Example output:
+
 ```
 deploying verifier
 deploying state
@@ -126,6 +128,7 @@ $ npx hardhat run scripts/upload-state-transition.js --network kaleido
 ```
 
 Example output:
+
 ```
 {
   authClaim: [
@@ -168,9 +171,7 @@ Example output:
   signatureR8y: '12271130677221335597573147809728317393586613092791779637238186615149949086007',
   signatureS: '2674232694038697703767340830255401681196777672498953355857692309695719736210'
 }
-Calculated witness successfully written to file /Users/jimzhang/iden3_witness.wtns
-Generated proof written to file /Users/jimzhang/iden3_proof.json
-Generated public signals written to file /Users/jimzhang/iden3_public.json
+Calculated witness successfully written to file /Users/jimzhang/iden3/JohnDoe/witness-303bf4db24b455170660.wtns
 Successfully generated proof!
 State before transaction:  BigNumber { value: "0" }
 Invoking state transaction on chain ...
@@ -186,11 +187,13 @@ $ go run main.go claim --issuer JohnDoe --holder 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fp
 ```
 
 Here,
+
 - `--issuer JohnDoe` indicates to use the private key for `JohnDoe` as the issuer of the claim.
 - `--holder 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS` indicates the public user ID of the holder to issue the claim to (AliceWonder's ID in this example). This string is printed in the output of the `init` command. It can also be found in `~/iden3/identities.json` file.
 - `--nonce 2` indicates to use the revocation nonce `2` for the claim. Every claim must have a unique nonce that is used to validate if the claim has been revoked or not.
 
 Example output:
+
 ```
 Using issuer identity with name:  JohnDoe
 Using holder identity:  11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS
@@ -243,9 +246,14 @@ To launch the sample verifier's web site, go to the `verifier/server` folder and
 
 ```
 $ npm i
-$ node app.js
+$ node app.js --jsonrpc-url https://[appcred]:[password]@u0nc4abdk4-u0c5xarhgs-rpc.us0-aws.kaleido.io --state-contract 0xe4bad4a8636d79e918ffa9db72502fcf56a77d2d
 server running on port 8080
 ```
+
+Here,
+
+- `--jsonrpc-url` indicates the blockchain node for the state resolver to contact in order to get the latest state to verify the proof responses against
+- `--state-contract` indicates the `State.sol` contract address that captures the issuer's latest state
 
 Point your browser at the URL `http://localhost:8080`, then click the "Sign In" button to display the QR code which encodes the proof request.
 
@@ -297,11 +305,13 @@ $ go run main.go respond-to-challenge --holder AliceWonder --qrcode /Users/alice
 ```
 
 Here,
+
 - `--holder AliceWonder` indicates to use the private key and the Merkle tree of the identity `AliceWonder`,
 - `--qrcode <file>` indicates to decode the proof request from the QR code image file, and
 - `--challenge 12345` indicates to sign the unique challenge nonce `12345`, which is an alternative to using the QR code
 
 Example output:
+
 ```
 Using the challenge &{Message:12345 Scope:{CircuitID:credentialAtomicQuerySig Queries:[{Property:birthdate Operator:2 Value:2.0000101e+07}]}} decoded from the QR Code
 Loading holder state

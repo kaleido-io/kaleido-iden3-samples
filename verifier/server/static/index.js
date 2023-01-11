@@ -23,8 +23,8 @@ window.onload = () => {
 function makeQr(el, data) {
   return new QRCode(el, {
     text: JSON.stringify(data),
-    width: 400,
-    height: 400,
+    width: 600,
+    height: 600,
     colorDark: '#000',
     colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.H,
