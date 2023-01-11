@@ -226,14 +226,14 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
   };
 
   const url = challengeRequest.body.callbackUrl;
-  console.log('Sending callback to verifier server: ', url);
+  console.log('Sending callback to the verifier server: ', url);
   try {
     const result = await axios({
       method: 'post',
       url,
       data: challengeResponse,
     });
-    console.log(`Success response from verifier server: ${JSON.stringify({status: result.status, message: result.data})}`);
+    console.log(`Success response from the verifier server: ${JSON.stringify({status: result.status, message: result.data})}`);
   } catch (error) {
     if (error.response) {
       // The request was made and the server responded with a status code
