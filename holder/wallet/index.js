@@ -226,13 +226,14 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
   };
 
   const url = challengeRequest.body.callbackUrl;
-  console.log('Sending callback to', url);
+  console.log('Sending callback to verifier server: ', url);
   try {
     const result = await axios({
       method: 'post',
       url,
       data: challengeResponse,
     });
+    console.log(`Success response from verifier server: ${JSON.stringify({status: result.status, message: result.data})}`);
   } catch (error) {
     if (error.response) {
       // The request was made and the server responded with a status code
@@ -249,6 +250,8 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
       // Something happened in setting up the request that triggered an Error
       console.log('Error', error.message);
     }
+    console.log(`Callback to ${url} failed: ${error.message}. Please check the verifier server logs for more details.`)
+    throw error;
   }
 }
 
@@ -277,11 +280,10 @@ try {
     })
     .then(() => {
       console.log('Done!');
-      process.exit(0);
     })
     .catch((err) => {
-      console.error(err);
-    });
+      console.error(err.message);
+    }).finally(() => process.exit(0));
 } catch (err) {
   console.error(err);
 }
