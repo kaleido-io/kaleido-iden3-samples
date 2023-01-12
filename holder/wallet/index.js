@@ -12,6 +12,8 @@ const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 const argv = yargs(hideBin(process.argv)).argv;
 
+const crypto = require('crypto');
+const random = crypto.randomBytes(10).toString('hex');
 const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
 const { verify } = require('./snark/verify');
@@ -111,6 +113,8 @@ async function scanQR() {
 }
 
 async function generateProof(challenge) {
+  const WITNESS_FILE = path.join(os.homedir(), 'iden3', holderName, `witness-${random}.wtns`);
+
   const holderInputs = await getHolderInputs();
   const claimInputs = await getClaimInputs();
   const challengeInputs = await getChallengeInputs();
@@ -199,8 +203,8 @@ async function generateProof(challenge) {
     timestamp: Math.floor(Date.now() / 1000),
   };
   console.log(inputs);
-  await generateWitness(inputs);
-  const { proof, publicSignals } = await prove();
+  await generateWitness(inputs,WITNESS_FILE );
+  const { proof, publicSignals } = await prove(WITNESS_FILE);
   await verify(proof, publicSignals);
   await sendCallback(challenge, proof, publicSignals, holderInputs.userID);
 }

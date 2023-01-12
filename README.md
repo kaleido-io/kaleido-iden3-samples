@@ -333,12 +333,11 @@ Challenge response inputs written to the file: /Users/jimzhang/iden3/AliceWonder
 
 ## Generate the Zero Knowledge Proof for the Claim Challenge
 
-We use snark.js again to generate the proof, using the inputs that have been generated in the above step and callback to the verifier server for verification. `IDEN3_NAME` should be set to the issuer name.
+We use snark.js again to generate the proof, using the inputs that have been generated in the above step and callback to the verifier server for verification.
 
 ```
 $ cd holder/wallet
 $ npm i
-$ export IDEN3_NAME=JohnDoe
 $ node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
 ```
 

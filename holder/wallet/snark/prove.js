@@ -17,9 +17,7 @@
 const path = require('path');
 const snarkjs = require('snarkjs');
 
-const { WITNESS_FILE } = require('./generate_witness');
-
-async function prove() {
+async function prove(WITNESS_FILE) {
   const zkeyFile = path.join(__dirname, 'circuit_final.zkey');
   const { proof, publicSignals } = await snarkjs.groth16.prove(zkeyFile, WITNESS_FILE);
   return { proof, publicSignals };
