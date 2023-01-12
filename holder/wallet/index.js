@@ -250,9 +250,6 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
       // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
       // http.ClientRequest in node.js
       console.log(error.request);
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.log('Error', error.message);
     }
     console.log(`Callback to ${url} failed: ${error.message}. Please check the verifier server logs for more details.`)
     throw error;
