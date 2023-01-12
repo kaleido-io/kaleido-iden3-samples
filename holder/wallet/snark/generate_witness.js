@@ -1,14 +1,9 @@
 const WitnessCalc = require('./witness_calculator.js');
-const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
+
 const { readFileSync, writeFileSync } = require('fs');
 
-const identityName = process.env.IDEN3_NAME;
-const random = crypto.randomBytes(10).toString('hex');
-const WITNESS_FILE = path.join(os.homedir(), 'iden3', identityName, `witness-${random}.wtns`);
-
-async function generateWitness(input) {
+async function generateWitness(input, WITNESS_FILE) {
   const circuit = readFileSync(path.join(__dirname, 'circuit.wasm'));
   const wc = await WitnessCalc(circuit);
   const buff = await wc.calculateWTNSBin(input, 0);
@@ -18,5 +13,4 @@ async function generateWitness(input) {
 
 module.exports = {
   generateWitness,
-  WITNESS_FILE,
 };

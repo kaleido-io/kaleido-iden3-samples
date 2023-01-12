@@ -12,6 +12,8 @@ const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 const argv = yargs(hideBin(process.argv)).argv;
 
+const crypto = require('crypto');
+const random = crypto.randomBytes(10).toString('hex');
 const { generateWitness } = require('./snark/generate_witness');
 const { prove } = require('./snark/prove');
 const { verify } = require('./snark/verify');
@@ -111,6 +113,8 @@ async function scanQR() {
 }
 
 async function generateProof(challenge) {
+  const WITNESS_FILE = path.join(os.homedir(), 'iden3', holderName, `witness-${random}.wtns`);
+
   const holderInputs = await getHolderInputs();
   const claimInputs = await getClaimInputs();
   const challengeInputs = await getChallengeInputs();
@@ -199,8 +203,8 @@ async function generateProof(challenge) {
     timestamp: Math.floor(Date.now() / 1000),
   };
   console.log(inputs);
-  await generateWitness(inputs);
-  const { proof, publicSignals } = await prove();
+  await generateWitness(inputs,WITNESS_FILE );
+  const { proof, publicSignals } = await prove(WITNESS_FILE);
   await verify(proof, publicSignals);
   await sendCallback(challenge, proof, publicSignals, holderInputs.userID);
 }
@@ -226,13 +230,14 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
   };
 
   const url = challengeRequest.body.callbackUrl;
-  console.log('Sending callback to', url);
+  console.log('Sending callback to the verifier server: ', url);
   try {
     const result = await axios({
       method: 'post',
       url,
       data: challengeResponse,
     });
+    console.log(`Success response from the verifier server: ${JSON.stringify({status: result.status, message: result.data})}`);
   } catch (error) {
     if (error.response) {
       // The request was made and the server responded with a status code
@@ -245,10 +250,9 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
       // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
       // http.ClientRequest in node.js
       console.log(error.request);
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.log('Error', error.message);
     }
+    console.log(`Callback to ${url} failed: ${error.message}. Please check the verifier server logs for more details.`)
+    throw error;
   }
 }
 
@@ -277,11 +281,10 @@ try {
     })
     .then(() => {
       console.log('Done!');
-      process.exit(0);
     })
     .catch((err) => {
-      console.error(err);
-    });
+      console.error(err.message);
+    }).finally(() => process.exit(0));
 } catch (err) {
   console.error(err);
 }

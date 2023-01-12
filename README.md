@@ -234,6 +234,11 @@ $ mkdir ~/iden3/AliceWonder/received-claims
 $ cp ~/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json ~/iden3/AliceWonder/received-claims/
 ```
 
+
+### Issuer update the on-chain state
+In order for the verifier to validate the claim, the issuer needs to publish the latest identity state on chain following [Generate proof and update on-chain state](#generate-proof-and-update-on-chain-state) again.
+
+
 ## Verifier Presents a Claim Challenge
 
 The verifier wants to request the holder to present a proof for a condition that the verifier is interested in. The current communication between the verifier and the holder is conducted via QR code.
@@ -253,9 +258,11 @@ server running on port 8080
 Here,
 
 - `--jsonrpc-url` indicates the blockchain node for the state resolver to contact in order to get the latest state to verify the proof responses against
-- `--state-contract` indicates the `State.sol` contract address that captures the issuer's latest state
+- `--state-contract` indicates the `State.sol` contract address that captures the issuer's latest state. (you can find the value of it in the `state` field in `~/iden3/deploy_output.json` file)
 
 Point your browser at the URL `http://localhost:8080`, then click the "Sign In" button to display the QR code which encodes the proof request.
+
+**Make sure you keep this server running so that the holder can respond to this login session in the last step**
 
 Here's the sample proof request:
 
@@ -326,10 +333,18 @@ Challenge response inputs written to the file: /Users/jimzhang/iden3/AliceWonder
 
 ## Generate the Zero Knowledge Proof for the Claim Challenge
 
-We use snark.js again to generate the proof, using the inputs that have been generated in the above step.
+We use snark.js again to generate the proof, using the inputs that have been generated in the above step and callback to the verifier server for verification.
 
 ```
 $ cd holder/wallet
 $ npm i
 $ node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
+```
+
+Example verification success output:
+````
+Successfully generated proof!
+Sending callback to verifier server:  http://localhost:8080/api/callback?sessionId=1
+Success response from verifier server: {"status":200,"message":"user with ID: 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS Succesfully authenticated"}
+Done!
 ```
