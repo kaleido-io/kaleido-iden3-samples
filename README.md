@@ -107,8 +107,6 @@ The result, in particular the State contract address, is persisted in a file (`$
 
 Next we want to publish the transition from the nil state to the genesis state, including the issuer's auth claim in the Merkle tree, to the [State smart contract](./issuer/upload-claims/contracts/State.sol). The smart contract function `transitState()` takes the public inputs (issuer ID, old state and new state) and the proof, verifies the proof and then updates the state for the issuer ID to the new state.
 
-> Note that the state published to the smart contract is the hash of the latest Merkle trees: `hash(claims_root, revocation_root, roots_root)`. This means that care should be taken when designing the claim schemas. No PII _should_ be part of the claim because a hash of PII is still considered PII under some regulations such as GDPR ([details](https://legalconsortium.org/uncategorized/how-does-the-eus-gdpr-view-hashed-data-on-the-blockchain/#:~:text=The%20GDPR%20does%20not%20apply,linkability%E2%80%9D%20of%20an%20unreadable%20hash) available here).
-
 We use the snarkjs library to generate the state transition proof, from the nil state to the genesis state, and upload the states with the proof to the smart contract in order to update the onchain state for the identity.
 
 This step uses the output of the Golang program as the input to the proof generation. It's based on a [pre-compiled circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/stateTransition.circom) for the state transition.
@@ -234,10 +232,9 @@ $ mkdir ~/iden3/AliceWonder/received-claims
 $ cp ~/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json ~/iden3/AliceWonder/received-claims/
 ```
 
-
 ### Issuer update the on-chain state
-In order for the verifier to validate the claim, the issuer needs to publish the latest identity state on chain following [Generate proof and update on-chain state](#generate-proof-and-update-on-chain-state) again.
 
+In order for the verifier to validate the claim, the issuer needs to publish the latest identity state on chain following [Generate proof and update on-chain state](#generate-proof-and-update-on-chain-state) again.
 
 ## Verifier Presents a Claim Challenge
 
@@ -342,7 +339,8 @@ $ node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-q
 ```
 
 Example verification success output:
-````
+
+```
 Successfully generated proof!
 Sending callback to verifier server:  http://localhost:8080/api/callback?sessionId=1
 Success response from verifier server: {"status":200,"message":"user with ID: 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS Succesfully authenticated"}
