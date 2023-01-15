@@ -54,7 +54,7 @@ func IssueClaim() {
 	}
 	holderId, err := core.IDFromString(*holderIdStr)
 	if err != nil {
-		fmt.Println("Failed to use the provided Id: ", err)
+		fmt.Println("Failed to parse the provided holder ID: ", err)
 		os.Exit(1)
 	}
 	fmt.Println("Using issuer identity with name: ", *issuerNameStr)
@@ -73,6 +73,34 @@ func IssueClaim() {
 	issuerId, err := loadUserId(*issuerNameStr)
 	assertNoError(err)
 
+	fmt.Println("Issue the KYC age claim")
+
+	// create the basic claim, independent of issuer and prev state
+	ageClaim := createAgeClaim(holderId, *revNonce)
+
+	// issue the claim relative to prev state and persist it
+	issueClaim(ageClaim, issuerNameStr, issuerId, holderId, privKey, *revNonce)
+}
+
+func createAgeClaim(holderId core.ID, revNonce uint64) *core.Claim {
+	// Load the schema for the KYC claims
+	schemaBytes, _ := os.ReadFile("./schemas/kyc.json-ld")
+	var sHash core.SchemaHash
+
+	h := keccak256.Hash(schemaBytes, []byte("AgeCredential"))
+	copy(sHash[:], h[len(h)-16:])
+	sHashText, _ := sHash.MarshalText()
+	ageSchemaHash := string(sHashText)
+	fmt.Println("-> Schema hash for 'AgeCredential':", ageSchemaHash)
+
+	kycAgeSchema, _ := core.NewSchemaHashFromHex(ageSchemaHash)
+	birthDay := big.NewInt(19950704)
+	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthDay, nil), core.WithRevocationNonce(revNonce))
+
+	return ageClaim
+}
+
+func issueClaim(ageClaim *core.Claim, issuerNameStr *string, issuerId *core.ID, holderId core.ID, privKey *babyjub.PrivateKey, revNonce uint64) {
 	ctx := context.Background()
 	fmt.Println("Loading issuer state")
 	claimsTree, revocationsTree, rootsTree, err := loadState(ctx, issuerNameStr)
@@ -136,29 +164,13 @@ func IssueClaim() {
 	issuerPreviousState.AuthClaimMtpBytes = authMTProof.Bytes()
 	issuerPreviousState.AuthClaimNonRevMtpBytes = authNonRevMTProof.Bytes()
 
-	fmt.Println("Issue the KYC age claim")
-	// Load the schema for the KYC claims
-	schemaBytes, _ := os.ReadFile("./schemas/kyc.json-ld")
-	var sHash core.SchemaHash
-
-	// issue the age claim
-	h := keccak256.Hash(schemaBytes, []byte("AgeCredential"))
-	copy(sHash[:], h[len(h)-16:])
-	sHashText, _ := sHash.MarshalText()
-	ageSchemaHash := string(sHashText)
-	fmt.Println("-> Schema hash for 'AgeCredential':", ageSchemaHash)
-
-	kycAgeSchema, _ := core.NewSchemaHashFromHex(ageSchemaHash)
-	birthDay := big.NewInt(19950704)
-	ageClaim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthDay, nil), core.WithRevocationNonce(*revNonce))
-	// kycClaim, err := core.NewClaim(kycSchema, core.WithIndexDataBytes([]byte("Lionel Messi"), []byte("ACCOUNT1234567890")), core.WithValueDataBytes([]byte("US"), []byte("295816c03b74e65ac34e5c6dda3c75")))
 	encoded, _ := json.MarshalIndent(ageClaim, "", "  ")
 	fmt.Printf("-> Issued age claim: %s\n", encoded)
 
-	persistClaim(ctx, *issuerNameStr, *holderIdStr, &holderId, ageClaim, *revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerRecordedTreeState, issuerPreviousState, authClaim)
+	persistClaim(ctx, *issuerNameStr, &holderId, ageClaim, revNonce, claimsTree, revocationsTree, rootsTree, privKey, issuerId, issuerRecordedTreeState, issuerPreviousState, authClaim)
 }
 
-func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, issuerRecordedTreeState circuits.TreeState, issuerPreviousState *issuerState, issuerAuthClaim *core.Claim) {
+func persistClaim(ctx context.Context, issuer string, holderId *core.ID, ageClaim *core.Claim, ageNonce uint64, claimsTree, revocationsTree, rootsTree *merkletree.MerkleTree, privKey *babyjub.PrivateKey, issuerId *core.ID, issuerRecordedTreeState circuits.TreeState, issuerPreviousState *issuerState, issuerAuthClaim *core.Claim) {
 
 	issuerAuthMTProof, err := merkletree.NewProofFromBytes(issuerPreviousState.AuthClaimMtpBytes)
 	assertNoError(err)
@@ -256,7 +268,6 @@ func persistClaim(ctx context.Context, issuer, holderIdStr string, holderId *cor
 		AuthClaimNonRevMtpBytes: issuerPreviousState.AuthClaimNonRevMtpBytes,
 	}, false)
 	assertNoError(err)
-
 }
 
 func getNodeAuxValue(a *merkletree.NodeAux) (*merkletree.Hash, *merkletree.Hash, string) {
