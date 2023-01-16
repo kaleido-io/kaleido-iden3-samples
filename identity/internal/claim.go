@@ -29,7 +29,6 @@ import (
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/iden3/go-iden3-crypto/keccak256"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	merkletree "github.com/iden3/go-merkletree-sql"
 )
 
@@ -201,12 +200,7 @@ func persistClaim(ctx context.Context, issuer string, holderId core.ID, basicCla
 		RootOfRoots:    rootsTree.Root(),
 	}
 	proofNotRevoke, _, _ := revocationsTree.GenerateProof(ctx, big.NewInt(int64(revNonce)), revocationsTree.Root())
-	hashIndex, hashValue, err := claimsIndexValueHashes(*basicClaim)
-	if err != nil {
-		fmt.Printf("Failed to calculate claim hashes: %s\n", err)
-		os.Exit(1)
-	}
-	commonHash, _ := merkletree.HashElems(hashIndex, hashValue)
+	commonHash, _ := merkletree.HashElems(claimHashIndex, claimHashValue)
 	claimSignature := privKey.SignPoseidon(commonHash.BigInt())
 
 	claimIssuerSignature := circuits.BJJSignatureProof{
@@ -284,14 +278,4 @@ func getNodeAuxValue(a *merkletree.NodeAux) (*merkletree.Hash, *merkletree.Hash,
 	}
 
 	return key, value, noAux
-}
-
-func claimsIndexValueHashes(c core.Claim) (*big.Int, *big.Int, error) {
-	index, value := c.RawSlots()
-	indexHash, err := poseidon.Hash(core.ElemBytesToInts(index[:]))
-	if err != nil {
-		return nil, nil, err
-	}
-	valueHash, err := poseidon.Hash(core.ElemBytesToInts(value[:]))
-	return indexHash, valueHash, err
 }
