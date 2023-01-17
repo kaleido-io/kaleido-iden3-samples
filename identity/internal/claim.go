@@ -177,21 +177,11 @@ func persistClaim(ctx context.Context, issuer string, holderId core.ID, basicCla
 	issuerAuthNonRevMTProof, err := merkletree.NewProofFromBytes(issuerPreviousState.AuthClaimNonRevMtpBytes)
 	assertNoError(err)
 
-	// add the claim to the claim tree
-	fmt.Printf("-> Add the claim to the claims tree\n\n")
-	claimHashIndex, claimHashValue, _ := basicClaim.HiHv()
-	claimsTree.Add(ctx, claimHashIndex, claimHashValue)
-
-	fmt.Printf("-> Add the current claim tree root to the roots tree\n")
-	err = rootsTree.Add(ctx, claimsTree.Root().BigInt(), big.NewInt(0))
-	assertNoError(err)
-
 	// persists the input for the validity of the issuer identity against the latest state tree
 	a := circuits.AtomicQuerySigInputs{}
 
 	// persists additional inputs used for generating zk proofs by the holder
 	// these are candidates for sending to the holder wallet
-	basicClaimMTProof, _, _ := claimsTree.GenerateProof(ctx, claimHashIndex, claimsTree.Root())
 	stateAfterAddingClaim, _ := merkletree.HashElems(claimsTree.Root().BigInt(), revocationsTree.Root().BigInt(), rootsTree.Root().BigInt())
 	issuerStateAfterClaimAdd := circuits.TreeState{
 		State:          stateAfterAddingClaim,
@@ -200,42 +190,19 @@ func persistClaim(ctx context.Context, issuer string, holderId core.ID, basicCla
 		RootOfRoots:    rootsTree.Root(),
 	}
 	proofNotRevoke, _, _ := revocationsTree.GenerateProof(ctx, big.NewInt(int64(revNonce)), revocationsTree.Root())
+	claimHashIndex, claimHashValue, _ := basicClaim.HiHv()
 	commonHash, _ := merkletree.HashElems(claimHashIndex, claimHashValue)
 	claimSignature := privKey.SignPoseidon(commonHash.BigInt())
 
-	claimIssuerSignature := circuits.BJJSignatureProof{
-		IssuerID:           &issuerId,
-		IssuerTreeState:    issuerRecordedTreeState,
-		IssuerAuthClaimMTP: issuerAuthMTProof,
-		Signature:          claimSignature,
-		IssuerAuthClaim:    &issuerPreviousState.AuthClaim,
-		IssuerAuthNonRevProof: circuits.ClaimNonRevStatus{
-			TreeState: issuerRecordedTreeState,
-			Proof:     issuerAuthNonRevMTProof,
-		},
-	}
-	inputsUserClaim := circuits.Claim{
-		Claim:     basicClaim,
-		Proof:     basicClaimMTProof,
-		TreeState: issuerStateAfterClaimAdd,
-		NonRevProof: &circuits.ClaimNonRevStatus{
-			TreeState: issuerStateAfterClaimAdd,
-			Proof:     proofNotRevoke,
-		},
-		IssuerID:       &issuerId,
-		SignatureProof: claimIssuerSignature,
-	}
 	key, value, noAux := getNodeAuxValue(proofNotRevoke.NodeAux)
 	issuerPreviousState.AuthClaimMtp = circuits.PrepareSiblingsStr(issuerAuthMTProof.AllSiblings(), a.GetMTLevel())
 	issuerPreviousState.AuthClaimNonRevMtp = circuits.PrepareSiblingsStr(issuerAuthNonRevMTProof.AllSiblings(), a.GetMTLevel())
 	issuerPreviousState.AuthClaimNonRevMtpAuxHi = key
 	issuerPreviousState.AuthClaimNonRevMtpAuxHv = value
 	issuerPreviousState.AuthClaimNonRevMtpNoAux = noAux
-	inputs := ClaimInputs{
+	inputs := ClaimInputsForSigCircuit{
 		IssuerAuthState:            issuerPreviousState,
-		IssuerClaim:                inputsUserClaim.Claim,
-		IssuerClaimMtp:             circuits.PrepareSiblingsStr(basicClaimMTProof.AllSiblings(), a.GetMTLevel()),
-		IssuerClaimMtpBytes:        basicClaimMTProof.Bytes(),
+		IssuerClaim:                basicClaim,
 		IssuerState_State:          issuerStateAfterClaimAdd.State,
 		IssuerState_ClaimsTreeRoot: issuerStateAfterClaimAdd.ClaimsRoot,
 		IssuerState_RevTreeRoot:    issuerStateAfterClaimAdd.RevocationRoot,
@@ -245,7 +212,7 @@ func persistClaim(ctx context.Context, issuer string, holderId core.ID, basicCla
 		IssuerClaimNonRevMtpAuxHi:  key,
 		IssuerClaimNonRevMtpAuxHv:  value,
 		IssuerClaimNonRevMtpNoAux:  noAux,
-		ClaimSchema:                inputsUserClaim.Claim.GetSchemaHash().BigInt().String(),
+		ClaimSchema:                basicClaim.GetSchemaHash().BigInt().String(),
 		IssuerClaimSignatureR8X:    claimSignature.R8.X.String(),
 		IssuerClaimSignatureR8Y:    claimSignature.R8.Y.String(),
 		IssuerClaimSignatureS:      claimSignature.S.String(),

@@ -144,9 +144,6 @@ func RespondToChallenge() {
 	targetClaim, err := loadClaim(*holderNameStr)
 	assertNoError(err)
 
-	claimMTProof, err := merkletree.NewProofFromBytes(targetClaim.IssuerClaimMtpBytes)
-	assertNoError(err)
-
 	claimNonRevMtp, err := merkletree.NewProofFromBytes(targetClaim.IssuerClaimNonRevMtpBytes)
 	assertNoError((err))
 
@@ -198,7 +195,6 @@ func RespondToChallenge() {
 
 	inputsUserClaim := circuits.Claim{
 		Claim:     targetClaim.IssuerClaim,
-		Proof:     claimMTProof,
 		TreeState: issuerClaimTreeState,
 		NonRevProof: &circuits.ClaimNonRevStatus{
 			TreeState: issuerClaimTreeState,
@@ -234,7 +230,7 @@ func persistInputsForChallenge(name string, inputs circuits.AtomicQuerySigInputs
 	return nil
 }
 
-func loadClaim(name string) (*ClaimInputs, error) {
+func loadClaim(name string) (*ClaimInputsForSigCircuit, error) {
 	homedir, _ := os.UserHomeDir()
 	claimsPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/received-claims", name))
 	files, err := os.ReadDir(claimsPath)
@@ -254,7 +250,7 @@ func loadClaim(name string) (*ClaimInputs, error) {
 		return nil, err
 	}
 
-	var claim ClaimInputs
+	var claim ClaimInputsForSigCircuit
 	err = json.Unmarshal(content, &claim)
 	if err != nil {
 		return nil, err

@@ -74,7 +74,26 @@ type stateTransitionInputs struct {
 	SignatureS              string           `json:"signatureS"`
 }
 
-type ClaimInputs struct {
+type ClaimInputsForSigCircuit struct {
+	IssuerAuthState            *issuerState     `json:"issuerAuthState"`
+	IssuerClaim                *core.Claim      `json:"issuerClaim"`
+	IssuerState_ClaimsTreeRoot *merkletree.Hash `json:"issuerState_ClaimsTreeRoot"`
+	IssuerState_RevTreeRoot    *merkletree.Hash `json:"issuerState_RevTreeRoot"`
+	IssuerState_RootsTreeRoot  *merkletree.Hash `json:"issuerState_RootsTreeRoot"`
+	IssuerState_State          *merkletree.Hash `json:"issuerState_State"`
+	IssuerClaimNonRevMtp       []string         `json:"issuerClaimNonRevMtp"`
+	IssuerClaimNonRevMtpBytes  []byte           `json:"issuerClaimNonRevMtpBytes"`
+	IssuerClaimNonRevMtpAuxHi  *merkletree.Hash `json:"issuerClaimNonRevMtpAuxHi"`
+	IssuerClaimNonRevMtpAuxHv  *merkletree.Hash `json:"issuerClaimNonRevMtpAuxHv"`
+	IssuerClaimNonRevMtpNoAux  string           `json:"issuerClaimNonRevMtpNoAux"`
+	ClaimSchema                string           `json:"claimSchema"`
+	IssuerClaimSignatureR8X    string           `json:"issuerClaimSignatureR8x"`
+	IssuerClaimSignatureR8Y    string           `json:"issuerClaimSignatureR8y"`
+	IssuerClaimSignatureS      string           `json:"issuerClaimSignatureS"`
+}
+
+// Not currently used
+type ClaimInputsForMTPCircuit struct {
 	IssuerAuthState            *issuerState     `json:"issuerAuthState"`
 	IssuerClaim                *core.Claim      `json:"issuerClaim"`
 	IssuerClaimMtp             []string         `json:"issuerClaimMtp"`
