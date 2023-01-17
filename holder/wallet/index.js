@@ -24,6 +24,8 @@ const qrFile = argv['qrcode'];
 const HOLDER_GENESIS_STATE_FILE = path.join(os.homedir(), `iden3/${holderName}/genesis_state.json`);
 const HOLDER_CHALLENGE_FILE = path.join(os.homedir(), `iden3/${holderName}/challenge.json`);
 
+const CLAIM_FILE_PATTERN = /^([1-9][0-9]*)-([123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+).json$/;
+
 const NOOP = '0'; // = - no operation, skip query verification if set
 const EQUALS = '1'; // = - equals sign
 const LESS = '2'; // = - less-than sign
@@ -61,7 +63,13 @@ async function getHolderInputs() {
 
 async function getClaimInputs() {
   const claimsDir = path.join(os.homedir(), `iden3/${holderName}/received-claims`);
-  const claimFiles = fs.readdirSync(claimsDir);
+  const claimFiles = fs.readdirSync(claimsDir).filter(file => file.match(CLAIM_FILE_PATTERN));
+  if (claimFiles.length === 0) {
+    throw Error(`There are no received claims in ${claimsDir}`)
+  }
+  if (claimFiles.length > 1) {
+    throw Error(`There are multiple received claims in ${claimsDir}. Currently only a single one is supported.`)
+  }
   const content = fs.readFileSync(path.join(claimsDir, claimFiles[0]));
   const inputs = JSON.parse(content);
   return {
@@ -281,10 +289,12 @@ try {
     })
     .then(() => {
       console.log('Done!');
+      process.exit(0);
     })
     .catch((err) => {
-      console.error(err.message);
-    }).finally(() => process.exit(0));
+      console.error("Error:", err.message);
+      process.exit(1);
+    });
 } catch (err) {
   console.error(err);
 }
