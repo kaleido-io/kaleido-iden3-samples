@@ -76,7 +76,7 @@ async function main() {
     process.exit(0)
   }
   let genesisInfo = JSON.parse(fs.readFileSync(genesisJson));
-  let identifyInfo = {
+  let identityInfo = {
     userID: genesisInfo.userID
   }
   const issuerId = genesisInfo.userID;
@@ -87,7 +87,7 @@ async function main() {
   const isOldStateGenesis = stateTransitionInputs.isOldStateGenesis;
   
   let inputs = {
-    ...identifyInfo,
+    ...identityInfo,
     ...stateTransitionInputs
   }
   console.log(inputs);
@@ -115,7 +115,7 @@ async function main() {
       if (isOldStateGenesis && existingStateString === "0") {
         // genesis state, continue
       } else {
-        console.log(`The recorded identify state: ${existingStateString} does not equal to the old identity state: ${oldState} in file ${zkinputJson}.`);
+        console.log(`The recorded identity state: ${existingStateString} does not equal to the old identity state: ${oldState} in file ${zkinputJson}.`);
         process.exit(1);
       }
     }
@@ -124,7 +124,7 @@ async function main() {
   const tx = await contract.transitState(issuerId, oldState, newState, isOldStateGenesis === "1", a, b, c);
   await tx.wait();
   let updatedState = await contract.getState(issuerId);
-  console.log('State after transaction: ', updatedState);
+  console.log('State after transaction: ', updatedState.toString());
   // clean up the used inputs
   fs.renameSync(zkinputJson, zkpreviousJson);
   fs.renameSync(treeStatesJson, treeStatesPreviousJson);
