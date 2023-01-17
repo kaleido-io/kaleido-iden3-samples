@@ -10,6 +10,17 @@ The sample covers the 3 roles involved in a typical Self Sovereign Identity use 
 - **Holder**: to create their own identity, receive a claim issued by the issuer, and generate a proof for the claim when challenged by the verifier
 - **Verifier**: to challenge the holder for the proof of their possession of a claim, by using a zero knowledge query
 
+The iden3 protocol relies on zkSNARK for generating zero knowledge proofs at various stages of the end to end user flow:
+
+- state transition: [this circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/stateTransition.circom) is used for publishing the state transition of the identity state to the State contract.
+  - The file `issuer/upload-claims/scripts/snark/circuit_final.zkey` is the output of the trusted setup ceremony for this circuit based on the power of tau parameters `powersOfTau28_hez_final_16.ptau` described here: https://github.com/iden3/snarkjs/blob/master/README.md#7-prepare-phase-2
+  - The file `issuer/upload-claims/scripts/snark/circuit.wasm` is the output of the circuit compiler from the state transition circuit
+- claim proof: [this circuit](https://github.com/iden3/circuits/blob/master/circuits/lib/query/credentialAtomicQuerySig.circom) is used for verifying the claim query proof
+  - The file `holder/snark/circuit_final.key` is the output of the trusted setup ceremony for this circuit based on the power of tau parameters `powersOfTau28_hez_final_16.ptau` described here: https://github.com/iden3/snarkjs/blob/master/README.md#7-prepare-phase-2
+  - The file `holder/snark/circuit.wasm` are the output of the circuit compiler
+
+> The zkp generation code in this sample uses the `groth16` library under the cover, which requires circuit-specific trusted setup. That's why we have different proving keys (the `.zkey` files) and verification keys (the `verification_keys.json` files) for each of the circuits described above
+
 ## Create an Identity
 
 The issuer and the holder must first create their identity. This is accomplished with the Golang program in the `identity` folder, with the subcommand `init`.
