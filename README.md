@@ -230,6 +230,9 @@ Calculate the new state
 
 The issued claim is persisted in the folder `iden3/JohnDoe/claims`. The file name is `[nonce]-[holder user ID].json`.
 
+Note: since we are using signature-based proofs for claims, rather than MTP (Merkle Tree Proof)-based, there is no need to update the on-chain state for the newly issued claim. 
+With this approach, we only need to store the issuer's identity genesis state on-chain.
+
 ## Holder "Downloads" the Claim to their "Wallet"
 
 A real holder's wallet is typically a mobile app. In this sample, we use the Golang program to manage the resources in the identity's dedicated folder, mimicking the holder's wallet.
@@ -242,10 +245,6 @@ For instance, if the issuer's name is `JohnDoe`, and the holder's name is `Alice
 $ mkdir ~/iden3/AliceWonder/received-claims
 $ cp ~/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json ~/iden3/AliceWonder/received-claims/
 ```
-
-### Issuer update the on-chain state
-
-In order for the verifier to validate the claim, the issuer needs to publish the latest identity state on chain following [Generate proof and update on-chain state](#generate-proof-and-update-on-chain-state) again.
 
 ## Verifier Presents a Claim Challenge
 
