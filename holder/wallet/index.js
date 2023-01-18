@@ -5,7 +5,7 @@ const Jimp = require('jimp');
 const jsQR = require('jsqr');
 const { v4: uuidv4 } = require('uuid');
 const { protocol } = require('@iden3/js-iden3-auth');
-const { Id } = require('@iden3/js-iden3-core');
+const { Id, BytesHelper, Constants } = require('@iden3/js-iden3-core');
 const { AUTHORIZATION_RESPONSE_MESSAGE_TYPE } = protocol;
 const axios = require('axios');
 const yargs = require('yargs/yargs');
@@ -63,12 +63,12 @@ async function getHolderInputs() {
 
 async function getClaimInputs() {
   const claimsDir = path.join(os.homedir(), `iden3/${holderName}/received-claims`);
-  const claimFiles = fs.readdirSync(claimsDir).filter(file => file.match(CLAIM_FILE_PATTERN));
+  const claimFiles = fs.readdirSync(claimsDir).filter((file) => file.match(CLAIM_FILE_PATTERN));
   if (claimFiles.length === 0) {
-    throw Error(`There are no received claims in ${claimsDir}`)
+    throw Error(`There are no received claims in ${claimsDir}`);
   }
   if (claimFiles.length > 1) {
-    throw Error(`There are multiple received claims in ${claimsDir}. Currently only a single one is supported.`)
+    throw Error(`There are multiple received claims in ${claimsDir}. Currently only a single one is supported.`);
   }
   const content = fs.readFileSync(path.join(claimsDir, claimFiles[0]));
   const inputs = JSON.parse(content);
@@ -211,7 +211,7 @@ async function generateProof(challenge) {
     timestamp: Math.floor(Date.now() / 1000),
   };
   console.log(inputs);
-  await generateWitness(inputs,WITNESS_FILE );
+  await generateWitness(inputs, WITNESS_FILE);
   const { proof, publicSignals } = await prove(WITNESS_FILE);
   await verify(proof, publicSignals);
   await sendCallback(challenge, proof, publicSignals, holderInputs.userID);
@@ -245,7 +245,7 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
       url,
       data: challengeResponse,
     });
-    console.log(`Success response from the verifier server: ${JSON.stringify({status: result.status, message: result.data})}`);
+    console.log(`Success response from the verifier server: ${JSON.stringify({ status: result.status, message: result.data })}`);
   } catch (error) {
     if (error.response) {
       // The request was made and the server responded with a status code
@@ -259,7 +259,7 @@ async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
       // http.ClientRequest in node.js
       console.log(error.request);
     }
-    console.log(`Callback to ${url} failed: ${error.message}. Please check the verifier server logs for more details.`)
+    console.log(`Callback to ${url} failed: ${error.message}. Please check the verifier server logs for more details.`);
     throw error;
   }
 }
@@ -292,9 +292,21 @@ try {
       process.exit(0);
     })
     .catch((err) => {
-      console.error("Error:", err.message);
+      console.error('Error:', err.message);
       process.exit(1);
     });
 } catch (err) {
   console.error(err);
 }
+
+// local re-implementation of the BytesHelper.calculateChecksum() to match the
+// incorrect encoding of the checksum calculated by go-iden3-core
+// TODO: once the go-iden3-core release with the fix of the checksum calculation
+// is out, remove this hack
+function calculateChecksum(typ, genesis) {
+  const toChecksum = [...typ, ...genesis];
+  const s = toChecksum.reduce((acc, cur) => acc + cur, 0);
+  const checksum = [s >> 8, s & 0xff];
+  return Uint8Array.from(checksum);
+}
+BytesHelper.calculateChecksum = calculateChecksum;
