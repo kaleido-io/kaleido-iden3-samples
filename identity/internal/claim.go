@@ -24,8 +24,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-
-	// "time"
+	"time"
 
 	"github.com/iden3/go-circuits"
 	core "github.com/iden3/go-iden3-core"
@@ -116,7 +115,7 @@ func createBasicClaim(holderId core.ID, revNonce uint64) *core.Claim {
 		core.WithIndexDataInts(docStatusHash, nil),
 		// core.WithValueDataInts(big.NewInt(int64(VERIFIED)), nil),
 		core.WithRevocationNonce(revNonce),
-		// core.WithExpirationDate(time.Now().AddDate(0, 3, 0)),
+		core.WithExpirationDate(time.Now().AddDate(0, 3, 0)),
 	)
 	assertNoError(err)
 
