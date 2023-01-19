@@ -25,10 +25,13 @@ import (
 	"os"
 	"path/filepath"
 
+	// "time"
+
 	"github.com/iden3/go-circuits"
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/iden3/go-iden3-crypto/keccak256"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	merkletree "github.com/iden3/go-merkletree-sql"
 )
 
@@ -81,19 +84,41 @@ func IssueClaim() {
 	issueClaim(basicClaim, issuerNameStr, *issuerId, holderId, privKey, *revNonce)
 }
 
+// type DocumentStatus int64
+
+// const (
+// 	REJECTED DocumentStatus = iota
+// 	PENDING
+// 	VERIFIED
+// )
+
+func getSchemaHash(schemaFilePath string, schemaType string) core.SchemaHash {
+	// load the schema for the claim (contents must be identical to schema resource indicated in challenge response)
+	schemaBytes, _ := os.ReadFile(schemaFilePath)
+	var schemaHash core.SchemaHash
+
+	h := keccak256.Hash(schemaBytes, []byte(schemaType))
+	copy(schemaHash[:], h[len(h)-16:])
+
+	schemaHashHex, _ := schemaHash.MarshalText()
+	fmt.Printf("-> Schema hash for '%s': %s", schemaType, string(schemaHashHex))
+
+	return schemaHash
+}
+
 func createBasicClaim(holderId core.ID, revNonce uint64) *core.Claim {
-	// Load the schema for the claim
-	schemaBytes, _ := os.ReadFile("./schemas/kyc.json-ld")
-	var sHash core.SchemaHash
+	schemaHash := getSchemaHash("./schemas/kyc.json-ld", "CountryOfResidenceCredential")
 
-	h := keccak256.Hash(schemaBytes, []byte("AgeCredential"))
-	copy(sHash[:], h[len(h)-16:])
-	schemaHashHex, _ := sHash.MarshalText()
-	fmt.Println("-> Schema hash for 'AgeCredential':", string(schemaHashHex))
-
-	kycAgeSchema, _ := core.NewSchemaHashFromHex(string(schemaHashHex))
-	birthDay := big.NewInt(19950704)
-	claim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthDay, nil), core.WithRevocationNonce(revNonce))
+	docStatusHash, _ := poseidon.HashBytes([]byte("PASSPORT/CA/ZZ123456789:VERIFIED"))
+	claim, err := core.NewClaim(
+		schemaHash,
+		core.WithIndexID(holderId),
+		core.WithIndexDataInts(docStatusHash, nil),
+		// core.WithValueDataInts(big.NewInt(int64(VERIFIED)), nil),
+		core.WithRevocationNonce(revNonce),
+		// core.WithExpirationDate(time.Now().AddDate(0, 3, 0)),
+	)
+	assertNoError(err)
 
 	return claim
 }

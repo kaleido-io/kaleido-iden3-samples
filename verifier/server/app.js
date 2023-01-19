@@ -1,5 +1,6 @@
 const express = require('express');
 const { join } = require('path');
+const { Poseidon } = require('@iden3/js-crypto');
 const { auth, resolver, loaders } = require('@iden3/js-iden3-auth');
 const getRawBody = require('raw-body');
 const yargs = require('yargs/yargs');
@@ -47,6 +48,8 @@ app.listen(port, () => {
 // Create a map to store the auth requests and their session IDs
 const requestMap = new Map();
 
+const utf8 = (str) => new TextEncoder().encode(str);
+
 // GetQR returns auth request
 async function getQR(req, res) {
   // Audience is verifier id
@@ -54,7 +57,7 @@ async function getQR(req, res) {
   const callbackURL = '/api/callback';
   const audience = '1125GJqgw6YEsKFwj63GY87MMxPL9kwDKxPUiwMLNZ';
   const schemaUrl = 'https://schema.polygonid.com/jsonld/kyc.json-ld';
-  const schemaType = 'AgeCredential';
+  const schemaType = 'CountryOfResidenceCredential';  // HACK: using this type from the available KYC schema for expedience
   const circuitId = 'credentialAtomicQuerySig';
 
   const uri = `${publicHost}${callbackURL}?sessionId=${sessionId}`;
@@ -67,6 +70,8 @@ async function getQR(req, res) {
   request.thid = '7f38a193-0918-4a48-9fac-36adfdb8b542';
 
   // Add request for a specific proof
+  const docStatus = "PASSPORT/CA/ZZ123456789:VERIFIED";
+  const docStatusHash = Poseidon.hashBytes(utf8(docStatus)).toString()
   const proofRequest = {
     id: challenge,
     circuit_id: circuitId,
@@ -78,8 +83,8 @@ async function getQR(req, res) {
           url: schemaUrl,
         },
         req: {
-          birthDay: {
-            $lt: 20000101, // bithDay field less then 2000/01/01
+          countryCode: {  // HACK: using the countryCode field (in IndexA slot) for expedience
+            $eq: docStatusHash,
           },
         },
       },
@@ -97,7 +102,6 @@ async function getQR(req, res) {
 
 // Callback verifies the proof after sign-in callbacks
 async function callback(req, res) {
-  
   try {
     // Get session ID from request
     const sessionId = req.query.sessionId;
@@ -131,7 +135,8 @@ async function callback(req, res) {
       .status(200)
       .json({ message: `user with ID: ${authResponse.from} successfully authenticated` });
   } catch (error) {
-    console.log("Error: %s", error);
+    console.error("Error: %s", error);
+    // error.request && console.log("error.request:", error.request);
     return res
       .status(500)
       .json({ error: error.message });

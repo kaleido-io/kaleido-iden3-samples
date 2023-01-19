@@ -4,6 +4,7 @@ const path = require('path');
 const Jimp = require('jimp');
 const jsQR = require('jsqr');
 const { v4: uuidv4 } = require('uuid');
+const { Poseidon } = require('@iden3/js-crypto');
 const { protocol } = require('@iden3/js-iden3-auth');
 const { Id, BytesHelper, Constants } = require('@iden3/js-iden3-core');
 const { AUTHORIZATION_RESPONSE_MESSAGE_TYPE } = protocol;
@@ -120,6 +121,17 @@ async function scanQR() {
   return JSON.parse(result.data);
 }
 
+const INDEX_SLOT_A = 2;
+const INDEX_SLOT_B = 3;
+const VALUE_SLOT_A = 6;
+const VALUE_SLOT_B = 7;
+
+// This assumes the KYC schema for now. TODO: incorporate schema URL or actually look up slot in schema
+const SLOT_NAME_TO_INDEX = {
+  birthDay: INDEX_SLOT_A,
+  countryCode: INDEX_SLOT_A,
+};
+
 async function generateProof(challenge) {
   const WITNESS_FILE = path.join(os.homedir(), 'iden3', holderName, `witness-${random}.wtns`);
 
@@ -128,10 +140,12 @@ async function generateProof(challenge) {
   const challengeInputs = await getChallengeInputs();
 
   const queryRequest = challenge.body.scope[0].rules.query.req;
+  console.log("queryRequest:", JSON.stringify(queryRequest, null, 2));
+
   const queryProperty = Object.keys(queryRequest)[0];
-  if (queryProperty != 'birthDay') {
-    const msg = `As of now only the 'birthDay' property is supported in the challenge query. Had ${queryProperty}`;
-    throw new Error(msg);
+  const slotIndex = SLOT_NAME_TO_INDEX[queryProperty];
+  if (!slotIndex) {
+    throw new Error(`As of now the '${queryProperty}' property is not supported in the challenge query.`);
   }
   const queryExp = queryRequest[queryProperty];
   const exp = Object.entries(queryExp)[0];
@@ -140,8 +154,8 @@ async function generateProof(challenge) {
     ...holderInputs,
     ...claimInputs,
     ...challengeInputs,
-    slotIndex: 2, // index of slot A is where we store the claim's birthday (eg. "20000704")
-    operator: translateOperator(exp[0]), // the "EQUAL" operator
+    slotIndex, 
+    operator: translateOperator(exp[0]),
     value: [
       exp[1],
       '0',
@@ -210,7 +224,7 @@ async function generateProof(challenge) {
     ],
     timestamp: Math.floor(Date.now() / 1000),
   };
-  console.log(inputs);
+  console.log("inputs:", inputs);
   await generateWitness(inputs, WITNESS_FILE);
   const { proof, publicSignals } = await prove(WITNESS_FILE);
   await verify(proof, publicSignals);
@@ -292,7 +306,7 @@ try {
       process.exit(0);
     })
     .catch((err) => {
-      console.error('Error:', err.message);
+      console.error('Error:', err);
       process.exit(1);
     });
 } catch (err) {

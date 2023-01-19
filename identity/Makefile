@@ -45,4 +45,4 @@ $(IDEN3_DIR)/AliceWonder:
 	go run main.go init --name AliceWonder
 
 clean:
-	rm -fr $(IDEN3_DIR)
+	cd $(IDEN3_DIR) && rm -fr JohnDoe/ AliceWonder/ identities.json 
