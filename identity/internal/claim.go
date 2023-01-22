@@ -21,14 +21,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/iden3/go-circuits"
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/iden3/go-iden3-crypto/keccak256"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	merkletree "github.com/iden3/go-merkletree-sql"
 )
 
@@ -37,28 +40,91 @@ func IssueClaim() {
 	issueCmd := flag.NewFlagSet("claim", flag.ExitOnError)
 	issuerNameStr := issueCmd.String("issuer", "", "name of the issuer identity")
 	holderIdStr := issueCmd.String("holder", "", "base58-encoded ID of the holder")
+	schemaFile := issueCmd.String("schemaFile", "", "schema file to use (default is Polygon ID's KYC schema)")
+	schemaType := issueCmd.String("schemaType", "AgeCredential", "schema type to use")
+	indexStr := issueCmd.String("index", "", "integer or string to set in claim index slot (string must use double quotes; its hash is stored)")
+	valueStr := issueCmd.String("value", "", "integer or string to set in claim value slot")
+	expiryStr := issueCmd.String("expiry", "", "expiry time of claim in RFC3339 format (e.g. 2023-04-11T12:34:56Z, default is no expiry)")
+	expiryDays := issueCmd.Int("expiryDays", 0, "expiry time of claim in days from now (0 for no expiry)")
 	revNonce := issueCmd.Uint64("nonce", 2, "Revocation nonce for the new claim")
+
 	issueCmd.Parse(os.Args[2:])
 	if *issuerNameStr == "" {
-		fmt.Println("Must specify the name of the issuer with a --issuer parameter")
+		fmt.Println("Must specify the name of the issuer using --issuer")
 		os.Exit(1)
 	}
 	if *holderIdStr == "" {
-		fmt.Println("Must specify a base58-encoded ID for the holder with a --holder parameter")
+		fmt.Println("Must specify a base58-encoded ID for the holder using --holder")
+		os.Exit(1)
+	}
+	if *schemaFile == "" {
+		*schemaFile = "./schemas/kyc.json-ld"
+	}
+	if *indexStr == "" && *valueStr == "" {
+		fmt.Println("Must specify at least one value using --index and/or --value")
+		os.Exit(1)
+	}
+	if *schemaType == "" {
+		fmt.Println("Must specify a schema type using --schemaType")
 		os.Exit(1)
 	}
 	if *revNonce <= uint64(1) {
-		fmt.Println("Must specify a revocation nonce greater than 1 for the new claim with a --nonce parameter")
+		fmt.Println("Must specify a revocation nonce greater than 1 for the new claim using --nonce")
 		os.Exit(1)
 	}
 	holderId, err := core.IDFromString(*holderIdStr)
 	if err != nil {
-		fmt.Println("Failed to parse the provided holder ID: ", err)
+		fmt.Println("Failed to parse the provided holder ID:", err)
 		os.Exit(1)
 	}
-	fmt.Println("Using issuer identity with name: ", *issuerNameStr)
-	fmt.Println("Using holder identity: ", *holderIdStr)
-	fmt.Println("Using revocation nonce for the new claim: ", *revNonce)
+
+	// Parse index and value data (only one of each is supported for now)
+	var indexData, valueData [2]*big.Int
+	if *indexStr != "" {
+		indexData[0], err = parseValue(*indexStr)
+		if err != nil {
+			fmt.Println("Error parsing --index:", err)
+			os.Exit(1)
+		}
+	}
+	if *valueStr != "" {
+		valueData[0], err = parseValue(*valueStr)
+		if err != nil {
+			fmt.Println("Error parsing --value:", err)
+			os.Exit(1)
+		}
+	}
+
+	// Parse expiry date / duration
+	var expiryDate *time.Time
+	if *expiryStr != "" {
+		t, err := time.Parse(time.RFC3339, *expiryStr)
+		if err != nil {
+			fmt.Println("Error parsing expiry:", err)
+			os.Exit(1)
+		}
+		expiryDate = &t
+	} else if *expiryDays != 0 {
+		maxDays := math.MaxInt64 / (24 * int(time.Hour))
+		if *expiryDays < -maxDays || *expiryDays > maxDays {
+			fmt.Printf("Maximum number of days exceeded for --expiryDays. Value must be between -%d and %d.\n", maxDays, maxDays)
+			os.Exit(1)
+		}
+		dur, err := time.ParseDuration(fmt.Sprintf("%dh", *expiryDays*24))
+		assertNoError(err)
+
+		t := time.Now().Add(dur)
+		expiryDate = &t
+	}
+
+	fmt.Println("Using issuer identity with name:", *issuerNameStr)
+	fmt.Println("Using holder identity:", *holderIdStr)
+	fmt.Println("Using schema file:", *schemaFile)
+	fmt.Println("Using schema type:", *schemaType)
+	fmt.Println("Using index data:", indexData)
+	fmt.Println("Using value data:", valueData)
+	fmt.Println("Using expiry date:", expiryDate)
+	fmt.Println("Using revocation nonce:", *revNonce)
 
 	//
 	// Before issuing any claims, we need to first load the ID of the holder
@@ -75,25 +141,63 @@ func IssueClaim() {
 	fmt.Println("Issue the claim")
 
 	// create the basic claim, independent of issuer and prev state
-	basicClaim := createBasicClaim(holderId, *revNonce)
+	basicClaim := createBasicClaim(holderId, *schemaFile, *schemaType, indexData, valueData, expiryDate, *revNonce)
 
 	// issue the claim relative to prev state and persist it
 	issueClaim(basicClaim, issuerNameStr, *issuerId, holderId, privKey, *revNonce)
 }
 
-func createBasicClaim(holderId core.ID, revNonce uint64) *core.Claim {
-	// Load the schema for the claim
-	schemaBytes, _ := os.ReadFile("./schemas/kyc.json-ld")
-	var sHash core.SchemaHash
+func parseValue(str string) (*big.Int, error) {
+	if str[0] == '"' {
+		// parse as JSON string and return its Poseidon hash
+		var strValue string
+		err := json.Unmarshal([]byte(str), &strValue)
+		// fmt.Println("value as string:", strValue, "error:", err)
+		if err != nil {
+			return nil, err
+		}
+		hash, err := poseidon.HashBytes([]byte(strValue))
+		return hash, err
+	} else {
+		// parse as bigint
+		var bigInt big.Int
+		err := bigInt.UnmarshalText([]byte(str))
+		if err != nil {
+			return nil, err
+		}
+		return &bigInt, err
+	}
+}
 
-	h := keccak256.Hash(schemaBytes, []byte("AgeCredential"))
-	copy(sHash[:], h[len(h)-16:])
-	schemaHashHex, _ := sHash.MarshalText()
-	fmt.Println("-> Schema hash for 'AgeCredential':", string(schemaHashHex))
+func getSchemaHash(schemaFile string, schemaType string) core.SchemaHash {
+	// load the schema for the claim (contents must be identical to schema resource indicated in challenge response)
+	schemaBytes, err := os.ReadFile(schemaFile)
+	assertNoError(err)
 
-	kycAgeSchema, _ := core.NewSchemaHashFromHex(string(schemaHashHex))
-	birthDay := big.NewInt(19950704)
-	claim, _ := core.NewClaim(kycAgeSchema, core.WithIndexID(holderId), core.WithIndexDataInts(birthDay, nil), core.WithRevocationNonce(revNonce))
+	var schemaHash core.SchemaHash
+	h := keccak256.Hash(schemaBytes, []byte(schemaType))
+	copy(schemaHash[:], h[len(h)-16:])
+
+	schemaHashHex, _ := schemaHash.MarshalText()
+	fmt.Printf("-> Schema hash for schema file '%s' and type '%s': %s\n", schemaFile, schemaType, string(schemaHashHex))
+
+	return schemaHash
+}
+
+func createBasicClaim(holderId core.ID, schemaFile, schemaType string, indexData [2]*big.Int, valueData [2]*big.Int, expiryDate *time.Time, revNonce uint64) *core.Claim {
+	schemaHash := getSchemaHash(schemaFile, schemaType)
+
+	claim, err := core.NewClaim(
+		schemaHash,
+		core.WithIndexID(holderId),
+		core.WithIndexDataInts(indexData[0], indexData[1]),
+		core.WithValueDataInts(valueData[0], valueData[1]),
+		core.WithRevocationNonce(revNonce),
+	)
+	assertNoError(err)
+	if expiryDate != nil {
+		claim.SetExpirationDate(*expiryDate)
+	}
 
 	return claim
 }
