@@ -359,7 +359,7 @@ func loadUserId(issuerNameStr string) (*core.ID, error) {
 	issuerIdBigInt := &big.Int{}
 	issuerIdBigInt.SetString(issuerIdStr, 10)
 	issuerId, err := core.IDFromInt(issuerIdBigInt)
-	fmt.Println("-> Issuer identity: ", issuerId.String())
+	fmt.Println("-> Issuer identity:", issuerId.String())
 	if err != nil {
 		fmt.Printf("-> Failed to load issuer ID from string: %s\n", err)
 		os.Exit(1)
