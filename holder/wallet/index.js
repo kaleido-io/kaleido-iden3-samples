@@ -5,7 +5,15 @@ const Jimp = require('jimp');
 const jsQR = require('jsqr');
 const { v4: uuidv4 } = require('uuid');
 const { protocol } = require('@iden3/js-iden3-auth');
-const { Id, BytesHelper, Constants } = require('@iden3/js-iden3-core');
+
+// HACK: Needed to obtain the Id class since it and other `core` package members are not exported from js-iden3-auth,
+// and js-iden3-core is not considered released yet.
+// See https://github.com/iden3/js-iden3-auth/issues/37#issuecomment-1402491741
+const { Id } = require('@iden3/js-iden3-auth/dist/cjs/core/id');
+// Patch to use the expected factory method names from js-iden3-core's Id class.
+Id.fromBigInt ||= Id.idFromInt;
+Id.fromString ||= Id.idFromString;
+
 const { AUTHORIZATION_RESPONSE_MESSAGE_TYPE } = protocol;
 const axios = require('axios');
 const yargs = require('yargs/yargs');
@@ -218,6 +226,7 @@ async function generateProof(challenge) {
 }
 
 async function sendCallback(challengeRequest, proof, publicSignals, holderId) {
+  console.log("holderId:", holderId);
   const zkresponse = {
     id: challengeRequest.body.scope[0].id,
     circuit_id: challengeRequest.body.scope[0].circuit_id,
@@ -298,15 +307,3 @@ try {
 } catch (err) {
   console.error(err);
 }
-
-// local re-implementation of the BytesHelper.calculateChecksum() to match the
-// incorrect encoding of the checksum calculated by go-iden3-core
-// TODO: once the go-iden3-core release with the fix of the checksum calculation
-// is out, remove this hack
-function calculateChecksum(typ, genesis) {
-  const toChecksum = [...typ, ...genesis];
-  const s = toChecksum.reduce((acc, cur) => acc + cur, 0);
-  const checksum = [s >> 8, s & 0xff];
-  return Uint8Array.from(checksum);
-}
-BytesHelper.calculateChecksum = calculateChecksum;
