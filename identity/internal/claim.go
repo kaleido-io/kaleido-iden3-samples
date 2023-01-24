@@ -42,8 +42,10 @@ func IssueClaim() {
 	holderIdStr := issueCmd.String("holder", "", "base58-encoded ID of the holder")
 	schemaFile := issueCmd.String("schemaFile", "", "schema file to use (default is Polygon ID's KYC schema)")
 	schemaType := issueCmd.String("schemaType", "AgeCredential", "schema type to use")
-	indexStr := issueCmd.String("index", "", "integer or string to set in claim index slot (string must use double quotes; its hash is stored)")
-	valueStr := issueCmd.String("value", "", "integer or string to set in claim value slot")
+	indexDataStrA := issueCmd.String("indexDataA", "", "integer or string to set in index data slot A (string must use double quotes; its hash is stored)")
+	indexDataStrB := issueCmd.String("indexDataB", "", "integer or string to set in index data slot B")
+	valueDataStrA := issueCmd.String("valueDataA", "", "integer or string to set in value data slot A")
+	valueDataStrB := issueCmd.String("valueDataB", "", "integer or string to set in value data slot B")
 	expiryStr := issueCmd.String("expiry", "", "expiry time of claim in RFC3339 format (e.g. 2023-04-11T12:34:56Z, default is no expiry)")
 	expiryDays := issueCmd.Int("expiryDays", 0, "expiry time of claim in days from now (0 for no expiry)")
 	revNonce := issueCmd.Uint64("nonce", 2, "Revocation nonce for the new claim")
@@ -60,10 +62,6 @@ func IssueClaim() {
 	if *schemaFile == "" {
 		*schemaFile = "./schemas/kyc.json-ld"
 	}
-	if *indexStr == "" && *valueStr == "" {
-		fmt.Println("Must specify at least one value using --index and/or --value")
-		os.Exit(1)
-	}
 	if *schemaType == "" {
 		fmt.Println("Must specify a schema type using --schemaType")
 		os.Exit(1)
@@ -78,53 +76,28 @@ func IssueClaim() {
 		os.Exit(1)
 	}
 
-	// Parse index and value data (only one of each is supported for now)
-	var indexData, valueData [2]*big.Int
-	if *indexStr != "" {
-		indexData[0], err = parseValue(*indexStr)
-		if err != nil {
-			fmt.Println("Error parsing --index:", err)
-			os.Exit(1)
-		}
+	// Parse index and value data
+	indexData := [2]*big.Int{
+		parseValueArg("--indexDataA", *indexDataStrA), 
+		parseValueArg("--indexDataB", *indexDataStrB),
 	}
-	if *valueStr != "" {
-		valueData[0], err = parseValue(*valueStr)
-		if err != nil {
-			fmt.Println("Error parsing --value:", err)
-			os.Exit(1)
-		}
+	valueData := [2]*big.Int{
+		parseValueArg("--valueDataA", *valueDataStrA), 
+		parseValueArg("--valueDataB", *valueDataStrB),
 	}
 
 	// Parse expiry date / duration
-	var expiryDate *time.Time
-	if *expiryStr != "" {
-		t, err := time.Parse(time.RFC3339, *expiryStr)
-		if err != nil {
-			fmt.Println("Error parsing expiry:", err)
-			os.Exit(1)
-		}
-		expiryDate = &t
-	} else if *expiryDays != 0 {
-		maxDays := math.MaxInt64 / (24 * int(time.Hour))
-		if *expiryDays < -maxDays || *expiryDays > maxDays {
-			fmt.Printf("Maximum number of days exceeded for --expiryDays. Value must be between -%d and %d.\n", maxDays, maxDays)
-			os.Exit(1)
-		}
-		dur, err := time.ParseDuration(fmt.Sprintf("%dh", *expiryDays*24))
-		assertNoError(err)
+	expiryDate := parseExpiry(*expiryStr, *expiryDays)
 
-		t := time.Now().Add(dur)
-		expiryDate = &t
-	}
-
-	fmt.Println("Using issuer identity with name:", *issuerNameStr)
-	fmt.Println("Using holder identity:", *holderIdStr)
-	fmt.Println("Using schema file:", *schemaFile)
-	fmt.Println("Using schema type:", *schemaType)
-	fmt.Println("Using index data:", indexData)
-	fmt.Println("Using value data:", valueData)
-	fmt.Println("Using expiry date:", expiryDate)
-	fmt.Println("Using revocation nonce:", *revNonce)
+	fmt.Println("Using:")
+	fmt.Println("  issuer identity with name:", *issuerNameStr)
+	fmt.Println("  holder identity:", *holderIdStr)
+	fmt.Println("  schema file:", *schemaFile)
+	fmt.Println("  schema type:", *schemaType)
+	fmt.Println("  index data:", indexData)
+	fmt.Println("  value data:", valueData)
+	fmt.Println("  expiry date:", expiryDate)
+	fmt.Println("  revocation nonce:", *revNonce)
 
 	//
 	// Before issuing any claims, we need to first load the ID of the holder
@@ -147,7 +120,19 @@ func IssueClaim() {
 	issueClaim(basicClaim, issuerNameStr, *issuerId, holderId, privKey, *revNonce)
 }
 
+func parseValueArg(argName string, str string) *big.Int {
+	val, err := parseValue(str)
+	if err != nil {
+		fmt.Printf("Error parsing %s arg value '%s': %s\n", argName, str, err)
+		os.Exit(1)
+	}
+	return val
+}
+
 func parseValue(str string) (*big.Int, error) {
+	if str == "" {
+		return nil, nil
+	}
 	if str[0] == '"' {
 		// parse as JSON string and return its Poseidon hash
 		var strValue string
@@ -167,6 +152,31 @@ func parseValue(str string) (*big.Int, error) {
 		}
 		return &bigInt, err
 	}
+}
+
+func parseExpiry(expiryStr string, expiryDays int) *time.Time {
+	if expiryStr != "" {
+		t, err := time.Parse(time.RFC3339, expiryStr)
+		if err != nil {
+			fmt.Println("Error parsing expiry:", err)
+			os.Exit(1)
+		}
+		return &t
+	}
+
+	if expiryDays != 0 {
+		maxDays := math.MaxInt64 / (24 * int(time.Hour))
+		if expiryDays < -maxDays || expiryDays > maxDays {
+			fmt.Printf("Maximum number of days exceeded for --expiryDays. Value must be between -%d and %d.\n", maxDays, maxDays)
+			os.Exit(1)
+		}
+
+		dur := time.Duration(expiryDays * 24) * time.Hour
+		t := time.Now().Add(dur).Round(time.Second)
+		return &t
+	}
+
+	return nil
 }
 
 func getSchemaHash(schemaFile string, schemaType string) core.SchemaHash {

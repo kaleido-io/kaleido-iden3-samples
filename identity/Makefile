@@ -29,7 +29,7 @@ AliceWonder: $(IDEN3_DIR)/AliceWonder
 identities: JohnDoe AliceWonder
 
 issue-claim: identities
-	go run main.go claim --issuer JohnDoe --holder $(AW_ID) --schemaType AgeCredential --index 19950704 --nonce $(CLAIM_NONCE)
+	go run main.go claim --issuer JohnDoe --holder $(AW_ID) --schemaType AgeCredential --indexDataA 19950704 --nonce $(CLAIM_NONCE)
 
 receive-claim: identities
 	mkdir -p $(RECEIVED_CLAIMS_DIR)
