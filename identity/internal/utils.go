@@ -147,8 +147,8 @@ func getAuthClaimSchemaHash() (core.SchemaHash, error) {
 type IdentityLookupMap map[string]string
 
 func updateIdentifyLookupFile(identifyName string, identifyID string) {
-	homedir, _ := os.UserHomeDir()
-	lookupFilename := filepath.Join(homedir, "iden3/identities.json")
+
+	lookupFilename := filepath.Join(getWorkDir(""), "identities.json")
 	mapToSave := map[string]string{}
 	existingMapContent, err := os.ReadFile(lookupFilename)
 	if os.IsNotExist(err) {
@@ -186,7 +186,10 @@ func getWorkDir(identityName string) string {
 	workDir := os.Getenv("IDEN3_WORKDIR")
 	if workDir == "" {
 		homeDir, _ := os.UserHomeDir()
-		workDir = filepath.Join(homeDir, fmt.Sprintf("iden3/%s", identityName))
+		workDir = filepath.Join(homeDir, "iden3")
+	}
+	if identityName != "" {
+		workDir = filepath.Join(workDir, identityName)
 	}
 	return workDir
 

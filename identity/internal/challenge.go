@@ -190,8 +190,7 @@ func RespondToChallenge() {
 }
 
 func persistInputsForChallenge(name string, inputs circuits.AtomicQuerySigInputs) error {
-	homedir, _ := os.UserHomeDir()
-	inputsPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/challenge.json", name))
+	inputsPath := filepath.Join(getWorkDir(name), "challenge.json")
 	content, err := inputs.InputsMarshal()
 	if err != nil {
 		return err
@@ -205,8 +204,7 @@ func persistInputsForChallenge(name string, inputs circuits.AtomicQuerySigInputs
 }
 
 func loadClaim(name string) (*ClaimInputsForSigCircuit, error) {
-	homedir, _ := os.UserHomeDir()
-	claimsPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/private/received-claims", name))
+	claimsPath := filepath.Join(getWorkDir(name), "private/received-claims")
 	files, err := os.ReadDir(claimsPath)
 	if err != nil {
 		return nil, err

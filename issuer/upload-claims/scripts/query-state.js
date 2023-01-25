@@ -21,11 +21,11 @@ const fs = require("fs");
 const path = require("path");
 
 const identityName = process.env.IDEN3_NAME;
-const workDir = process.env.IDEN3_WORKDIR || os.homedir();
-const pathOutputJson = path.join(oworkDir, `iden3/deploy_output.json`);
+const workDir = process.env.IDEN3_WORKDIR || path.join(os.homedir(), "iden3");
+const pathOutputJson = path.join(oworkDir, `deploy_output.json`);
 const genesisJson = path.join(
   workDir,
-  `iden3/${identityName}private/states/genesis_state.json`
+  `${identityName}private/states/genesis_state.json`
 );
 
 async function main() {

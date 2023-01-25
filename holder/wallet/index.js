@@ -29,15 +29,15 @@ const { verify } = require("./snark/verify");
 const holderName = argv["holder"];
 const qrFile = argv["qrcode"];
 
-const workDir = process.env.IDEN3_WORKDIR || os.homedir();
+const workDir = process.env.IDEN3_WORKDIR || path.join(os.homedir(), "iden3");
 
 const HOLDER_GENESIS_STATE_FILE = path.join(
   workDir,
-  `iden3/${holderName}/private/states/genesis_state.json`
+  `${holderName}/private/states/genesis_state.json`
 );
 const HOLDER_CHALLENGE_FILE = path.join(
   workDir,
-  `iden3/${holderName}/challenge.json`
+  `${holderName}/challenge.json`
 );
 
 const CLAIM_FILE_PATTERN = /^genericClaim.*-via-signature.json$/;
@@ -79,10 +79,7 @@ async function getHolderInputs() {
 }
 
 async function getClaimInputs() {
-  const claimsDir = path.join(
-    workDir,
-    `iden3/${holderName}/private/received-claims`
-  );
+  const claimsDir = path.join(workDir, `${holderName}/private/received-claims`);
   const claimFiles = fs
     .readdirSync(claimsDir)
     .filter((file) => file.match(CLAIM_FILE_PATTERN));
@@ -179,7 +176,6 @@ async function scanQR() {
 async function generateProof(challenge) {
   const WITNESS_FILE = path.join(
     workDir,
-    "iden3",
     holderName,
     `private/witness-${random}.wtns`
   );

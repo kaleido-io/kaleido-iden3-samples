@@ -1,7 +1,3 @@
-IDEN3_DIR = $(HOME)/iden3
-ISSUED_CLAIM_PATH = $(IDEN3_DIR)/JohnDoe/private/claims
-RECEIVED_CLAIMS_DIR = $(IDEN3_DIR)/AliceWonder/private/received-claims
-
 .PHONY: all
 all: success-test
 

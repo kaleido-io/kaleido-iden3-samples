@@ -18,8 +18,8 @@ const { ethers, upgrades } = require("hardhat");
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const workDir = process.env.IDEN3_WORKDIR || os.homedir();
-const pathOutputJson = path.join(workDir, "./iden3/deploy_output.json");
+const workDir = process.env.IDEN3_WORKDIR || path.join(os.homedir(), "iden3");
+const pathOutputJson = path.join(workDir, "./deploy_output.json");
 
 async function main() {
   const Verifier = await ethers.getContractFactory("Verifier");

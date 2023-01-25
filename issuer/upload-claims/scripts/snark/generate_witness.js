@@ -23,11 +23,10 @@ const { readFileSync, writeFileSync } = require("fs");
 
 const identityName = process.env.IDEN3_NAME;
 const random = crypto.randomBytes(10).toString("hex");
-const workDir = process.env.IDEN3_WORKDIR || os.homedir();
+const workDir = process.env.IDEN3_WORKDIR || path.join(os.homedir(), "iden3");
 
 const WITNESS_FILE = path.join(
   workDir,
-  "iden3",
   identityName,
   `private/witness-${random}.wtns`
 );

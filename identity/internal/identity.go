@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	DEFAULT_PRIVATE_KEY_NAME = "private"
+	DEFAULT_PRIVATE_KEY_NAME = "defaultKey"
 )
 
 type GenesisState struct {
