@@ -56,7 +56,7 @@ func (cr *ClaimRecord) persist(workDir string) {
 	inputBytes, _ := json.MarshalIndent(cr, "", "  ")
 	outputFile := filepath.Join(workDir, fmt.Sprintf("private/claims/%s.json", cr.Name))
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
-	fmt.Printf("Persisting claim to %s\n", outputFile)
+	fmt.Printf("   -> Persisting claim to %s\n", outputFile)
 	os.WriteFile(outputFile, inputBytes, 0644)
 }
 

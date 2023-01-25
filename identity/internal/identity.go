@@ -77,7 +77,6 @@ func (identityData *Identity) CalculateCurrentState() *circuits.TreeState {
 		identityData.Public.RootsTree.Root().BigInt(),
 	)
 	assertNoError(err)
-	fmt.Printf("-> Calculated state hash: %s\n", identityStateHash.BigInt())
 
 	return &circuits.TreeState{
 		State:          identityStateHash,
@@ -104,9 +103,6 @@ func (identityData *Identity) IssueNewAuthClaim(ctx context.Context, keyName str
 	// An auth claim includes the X and Y curve coordinates of the public key, along with the revocation nonce
 	authClaim, err := core.NewClaim(authSchemaHash, core.WithIndexDataInts(pubKey.X, pubKey.Y), core.WithRevocationNonce(revNonce))
 	assertNoError(err)
-	encodedAuthClaim, err := json.MarshalIndent(authClaim, "", "  ")
-	assertNoError(err)
-	fmt.Printf("   -> Issued auth claim: encoded=%s\n", encodedAuthClaim)
 
 	fmt.Println("   -> Add the new auth claim to the claims tree")
 	hIndex, hValue, _ := authClaim.HiHv()
@@ -297,7 +293,7 @@ func (identityData *Identity) GenerateStateTransitionInputs(ctx context.Context,
 		identityData.Public.RootsTree.Add(ctx, claimTreeRootIndex, big.NewInt(0))
 	}
 	// construct the new identity state
-	fmt.Println("Calculate the new state")
+	fmt.Println("Generating state transition inputs")
 	newState := identityData.CalculateCurrentState()
 
 	// hash the [old state + new state] to be signed later
@@ -353,7 +349,7 @@ func (identityData *Identity) GenerateStateTransitionInputs(ctx context.Context,
 	if err != nil {
 		assertNoError(err)
 	}
-	fmt.Printf("-> State transition input bytes written to the file: %s\n", outputFile)
+	fmt.Printf("-> State transition inputs written to file: %s\n", outputFile)
 
 	treeStates := TreeStates{
 		Old: &TreeState{
@@ -378,7 +374,7 @@ func (identityData *Identity) GenerateStateTransitionInputs(ctx context.Context,
 	if err != nil {
 		assertNoError(err)
 	}
-	fmt.Printf("-> Tree states written into file: %s\n", outputFile2)
+	fmt.Printf("-> Old and new tree states written to file: %s\n", outputFile2)
 }
 
 func NewIdentity(identityName, keyName string) *Identity {
@@ -413,7 +409,7 @@ func NewIdentity(identityName, keyName string) *Identity {
 		assertNoError(fmt.Errorf("Failed to calculate ID from identity state: %s", err.Error()))
 	}
 
-	fmt.Printf("-> ID of the generated identity: %s\n\n", id)
+	fmt.Printf("-> ID of the generated identity: %s\n", id)
 	newID.Public.ID = id
 
 	// save the genesis state (only 1 auth claim in claims tree, empty revocation and roots tree)
@@ -555,6 +551,7 @@ func initializeBJJKey(identityName, keyName string) *babyjub.PrivateKey {
 	if err != nil {
 		assertNoError(fmt.Errorf("Failed to store private key for identity name: %s due to: %s.", identityName, err.Error()))
 	}
+	fmt.Printf("-> Private key written to file: %s\n", keyPath)
 	return &privKey
 }
 
@@ -636,7 +633,7 @@ func (identityData *Identity) persistGenesisState(ctx context.Context, cr *Claim
 	if err := os.WriteFile(outputFile, inputBytes, 0644); err != nil {
 		assertNoError(err)
 	}
-	fmt.Printf("-> Input bytes for the identity's genesis state written to the file: %s\n", outputFile)
+	fmt.Printf("-> Identity's genesis state written to file: %s\n", outputFile)
 }
 
 func (identityData *Identity) getPreviousState() *circuits.TreeState {
