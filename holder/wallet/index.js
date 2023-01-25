@@ -1,21 +1,3 @@
-<<<<<<< Updated upstream
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const Jimp = require('jimp');
-const jsQR = require('jsqr');
-const { v4: uuidv4 } = require('uuid');
-const { protocol } = require('@iden3/js-iden3-auth');
-
-// HACK: Needed to obtain the Id class since it and other `core` package members are not exported from js-iden3-auth,
-// and js-iden3-core is not considered released yet.
-// See https://github.com/iden3/js-iden3-auth/issues/37#issuecomment-1402491741
-const { Id } = require('@iden3/js-iden3-auth/dist/cjs/core/id');
-// Patch to use the expected factory method names from js-iden3-core's Id class.
-Id.fromBigInt ||= Id.idFromInt;
-Id.fromString ||= Id.idFromString;
-
-=======
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -23,8 +5,15 @@ const Jimp = require("jimp");
 const jsQR = require("jsqr");
 const { v4: uuidv4 } = require("uuid");
 const { protocol } = require("@iden3/js-iden3-auth");
-const { Id, BytesHelper, Constants } = require("@iden3/js-iden3-core");
->>>>>>> Stashed changes
+
+// HACK: Needed to obtain the Id class since it and other `core` package members are not exported from js-iden3-auth,
+// and js-iden3-core is not considered released yet.
+// See https://github.com/iden3/js-iden3-auth/issues/37#issuecomment-1402491741
+const { Id } = require("@iden3/js-iden3-auth/dist/cjs/core/id");
+// Patch to use the expected factory method names from js-iden3-core's Id class.
+Id.fromBigInt ||= Id.idFromInt;
+Id.fromString ||= Id.idFromString;
+
 const { AUTHORIZATION_RESPONSE_MESSAGE_TYPE } = protocol;
 const axios = require("axios");
 const yargs = require("yargs/yargs");
