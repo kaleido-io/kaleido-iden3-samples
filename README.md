@@ -240,7 +240,7 @@ With this approach, we only need to store the issuer's identity genesis state on
 
 A real holder's wallet is typically a mobile app. In this sample, we use the Golang program to manage the resources in the identity's dedicated folder, mimicking the holder's wallet.
 
-Therefore, we have already the Claim has already been downloaded into holder's private folders in the previous step.
+Therefore, the Claim has already been downloaded into holder's private folders in the previous step.
 
 The received claim is persisted in the folder `iden3/AliceWonder/private/received-claims`. The file name is `genericClaim-[schemaHash]-[issuer name]-[issuer key name]-[holder name]-via-signature.json`.
 
