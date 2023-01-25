@@ -187,48 +187,51 @@ Invoking state transaction on chain ...
 State after transaction:  BigNumber { value: "4415121770339690351530166661455105854178222280927373194615248123084196097920" }
 ```
 
-## Issuer Issues a Claim
+## Issuer Issues a Claim Via Signature
 
 To issue a claim, go back to the `identity` folder and run the Golang program with the subcommand `claim`.
 
 ```
-$ go run main.go claim --issuer JohnDoe --holder 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS --nonce 2
+$ go run main.go claim --issuer JohnDoe --holder AliceWonder --indexDataA 19950704
 ```
 
 Here,
 
 - `--issuer JohnDoe` indicates to use the private key for `JohnDoe` as the issuer of the claim.
-- `--holder 11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS` indicates the public user ID of the holder to issue the claim to (AliceWonder's ID in this example). This string is printed in the output of the `init` command. It can also be found in `~/iden3/identities.json` file.
-- `--nonce 2` indicates to use the revocation nonce `2` for the claim. Every claim must have a unique nonce that is used to validate if the claim has been revoked or not.
+- `--holder AliceWonder` the name of the holder to issue the claim to.
+- `--indexDataA 19950704` indicates to store number 19950704 into the indexDataSlot A of a claim structure.
 
 Example output:
 
 ```
-Using issuer identity with name:  JohnDoe
-Using holder identity:  11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS
-Using revocation nonce for the new claim:  2
+Using:
+  issuer identity name: JohnDoe
+  holder identity name: AliceWonder
+  schema file: ./schemas/kyc.json-ld
+  schema type: AgeCredential
+  index data: [19950704 <nil>]
+  value data: [<nil> <nil>]
+  expiry date: <nil>
 Loading issuer identity
--> Issuer private key successfully loaded
-Loading issuer ID
--> Issuer identity:  117Lsj1jXRhts4C1ADyKwEAYfhTRr4ymrA3UpwdU32
-Loading issuer state
-Load the issuer claims merkle tree
+Load the claims merkle tree
 Load the revocations merkle tree
 Load the roots merkle tree
-Issue the KYC age claim
--> Schema hash for 'KYCAgeCredential': 295816c03b74e65ac34e5c6dda3c753b
--> Issued age claim: ["759597918575796644664644898807048722473","26592700288876761065000893541725655075004149209048876525164078085327486976","19950704","0","2","0","0","0"]
--> Add the age claim to the claims tree
-
--> Input bytes for issued user claim written to the file: /Users/jimzhang/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json
-Add the current claim tree root to the roots tree
-Calculate the new state
--> state transition from old to new
--> State transition input bytes written to the file: /Users/jimzhang/iden3/JohnDoe/stateTransition_inputs.json
--> Tree states written into file: /Users/jimzhang/iden3/JohnDoe/treeStates.json
+Load holder identity in read only mode to figure out the ID
+Load the claims merkle tree
+Load the revocations merkle tree
+Load the roots merkle tree
+Creating the new claim
+-> Schema hash for schema file './schemas/kyc.json-ld' and type 'AgeCredential': 681758df5afc8632bbf2e88995c26adb
+-> Calculated state hash: 17344721974390121998109186055953020091232501576591384662216306133407895435304
+Generating the non-membership proof of revocation tree
+-> Calculated state hash: 17344721974390121998109186055953020091232501576591384662216306133407895435304
+Persisting claim to iden3/JohnDoe/private/claims/genericClaim-681758df5afc8632bbf2e88995c26adb-JohnDoe-private-AliceWonder.json
+Generating the auth Proof of key: private and storing claim inputs for Signature Circuit
+-> Calculated state hash: 17344721974390121998109186055953020091232501576591384662216306133407895435304
+Claim issued by "JohnDoe" using key "private" is received by holder "AliceWonder" under path: iden3/AliceWonder/private/received-claims/genericClaim-681758df5afc8632bbf2e88995c26adb-JohnDoe-private-AliceWonder-via-signature.json
 ```
 
-The issued claim is persisted in the folder `iden3/JohnDoe/claims`. The file name is `[nonce]-[holder user ID].json`.
+The issued claim is persisted in the folder `iden3/JohnDoe/private/claims`. The file name is `genericClaim-[schemaHash]-[issuer name]-[issuer key name]-[holder name].json`.
 
 Note: since we are using signature-based proofs for claims, rather than MTP (Merkle Tree Proof)-based, there is no need to update the on-chain state for the newly issued claim. 
 With this approach, we only need to store the issuer's identity genesis state on-chain.
@@ -237,14 +240,10 @@ With this approach, we only need to store the issuer's identity genesis state on
 
 A real holder's wallet is typically a mobile app. In this sample, we use the Golang program to manage the resources in the identity's dedicated folder, mimicking the holder's wallet.
 
-To mimic the transfer of the claim from the issuer's server to the holder's wallet, simply copy the claim file created in the previous step, to a `received-claims` folder of the holder.
+Therefore, we have already the Claim has already been downloaded into holder's private folders in the previous step.
 
-For instance, if the issuer's name is `JohnDoe`, and the holder's name is `AliceWonder`:
+The received claim is persisted in the folder `iden3/AliceWonder/private/received-claims`. The file name is `genericClaim-[schemaHash]-[issuer name]-[issuer key name]-[holder name]-via-signature.json`.
 
-```
-$ mkdir ~/iden3/AliceWonder/received-claims
-$ cp ~/iden3/JohnDoe/claims/2-11C3BYGvF9QaTBGCYfV3tiKQ5tQh1Fpu7YtnazFczS.json ~/iden3/AliceWonder/received-claims/
-```
 
 ## Verifier Presents a Claim Challenge
 

@@ -23,33 +23,33 @@ const fs = require("fs");
 const path = require("path");
 
 const identityName = process.env.IDEN3_NAME;
-
-const pathOutputJson = path.join(os.homedir(), `iden3/deploy_output.json`);
+const workDir = process.env.IDEN3_WORKDIR || os.homedir();
+const pathOutputJson = path.join(workDir, `iden3/deploy_output.json`);
 const genesisJson = path.join(
-  os.homedir(),
-  `iden3/${identityName}/genesis_state.json`
+  workDir,
+  `iden3/${identityName}/private/states/genesis_state.json`
 );
 const zkinputJson = path.join(
-  os.homedir(),
-  `iden3/${identityName}/stateTransition_inputs.json`
+  workDir,
+  `iden3/${identityName}/private/states/stateTransition_inputs.json`
 );
 
 // The following files are for record purpose to assist diagnose
 const zkpreviousJson = path.join(
-  os.homedir(),
-  `iden3/${identityName}/stateTransition_inputs_previous.json`
+  workDir,
+  `iden3/${identityName}/private/states/stateTransition_inputs_previous.json`
 );
 const treeStatesJson = path.join(
-  os.homedir(),
-  `iden3/${identityName}/treeStates.json`
+  workDir,
+  `iden3/${identityName}/private/states/treeStates.json`
 );
 const treeStatesPreviousJson = path.join(
-  os.homedir(),
-  `iden3/${identityName}/treeStates_previous.json`
+  workDir,
+  `iden3/${identityName}/private/states/treeStates_previous.json`
 );
 const archiveFolder = path.join(
-  os.homedir(),
-  `iden3/${identityName}/archived_transitions`
+  workDir,
+  `iden3/${identityName}/private/states/archived_transitions`
 );
 const { generateWitness } = require("./snark/generate_witness");
 const { prove } = require("./snark/prove");

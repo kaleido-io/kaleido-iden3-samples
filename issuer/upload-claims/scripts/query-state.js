@@ -14,40 +14,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const hre = require('hardhat');
+const hre = require("hardhat");
 const ethers = hre.ethers;
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+const os = require("os");
+const fs = require("fs");
+const path = require("path");
 
 const identityName = process.env.IDEN3_NAME;
-const pathOutputJson = path.join(os.homedir(), `iden3/deploy_output.json`);
-const genesisJson = path.join(os.homedir(), `iden3/${identityName}/genesis_state.json`);
+const workDir = process.env.IDEN3_WORKDIR || os.homedir();
+const pathOutputJson = path.join(oworkDir, `iden3/deploy_output.json`);
+const genesisJson = path.join(
+  workDir,
+  `iden3/${identityName}private/states/genesis_state.json`
+);
 
 async function main() {
   let stateContractAddress;
-  if (hre.network.name === 'mumbai') {
-    stateContractAddress = '0x46Fd04eEa588a3EA7e9F055dd691C688c4148ab3';
-  } else if (hre.network.name === 'kaleido') {
+  if (hre.network.name === "mumbai") {
+    stateContractAddress = "0x46Fd04eEa588a3EA7e9F055dd691C688c4148ab3";
+  } else if (hre.network.name === "kaleido") {
     let content = fs.readFileSync(pathOutputJson);
     if (!content) {
-      throw new Error('Must run the deploy script first');
+      throw new Error("Must run the deploy script first");
     }
     const { state } = JSON.parse(content);
     stateContractAddress = state;
   }
 
-  const contract = await ethers.getContractAt('State', stateContractAddress);
+  const contract = await ethers.getContractAt("State", stateContractAddress);
 
   let genesisInfo = JSON.parse(fs.readFileSync(genesisJson));
   const issuerId = genesisInfo.userID;
-  console.log('Issuer id', issuerId);
+  console.log("Issuer id", issuerId);
 
   let state = await contract.getState(issuerId);
-  console.log('Issuer state', state);
+  console.log("Issuer state", state);
 
   let transitionInfo = await contract.getTransitionInfo(state);
-  console.log('Transition info', transitionInfo);
+  console.log("Transition info", transitionInfo);
 }
 
 main()

@@ -1,40 +1,34 @@
 IDEN3_DIR = $(HOME)/iden3
-IDENTITIES_FILE = $(IDEN3_DIR)/identities.json
+ISSUED_CLAIM_PATH = $(IDEN3_DIR)/JohnDoe/private/claims
+RECEIVED_CLAIMS_DIR = $(IDEN3_DIR)/AliceWonder/private/received-claims
 
-JD_ID = $(shell jq -r .JohnDoe $(IDEN3_DIR)/identities.json)
-AW_ID = $(shell jq -r .AliceWonder $(IDEN3_DIR)/identities.json)
+.PHONY: all
+all: success-test
 
-CLAIM_NONCE = 2
-CLAIM_FILENAME = $(CLAIM_NONCE)-$(AW_ID).json
-ISSUED_CLAIM_PATH = $(IDEN3_DIR)/JohnDoe/claims/$(CLAIM_FILENAME)
-RECEIVED_CLAIMS_DIR = $(IDEN3_DIR)/AliceWonder/received-claims
+.PHONY: success-test
+success-test: identities issue-claim respond-to-challenge
 
-all: identities issue-claim receive-claim respond-to-challenge
+.PHONY: failure-test
+failure-test: identities issue-claim-fails-challenge respond-to-challenge
 
-test: identities
-	@echo IDEN3_DIR: $(IDEN3_DIR)
-	@echo IDENTITIES_FILE: $(IDENTITIES_FILE)
-	@echo JD_ID: $(JD_ID)
-	@echo AW_ID: $(AW_ID)
-	@echo CLAIM_FILENAME: $(CLAIM_FILENAME)
-	@echo ISSUED_CLAIM_PATH: $(ISSUED_CLAIM_PATH)
-	@echo RECEIVED_CLAIMS_DIR: $(RECEIVED_CLAIMS_DIR)
-
+.PHONY: JohnDoe
 JohnDoe: $(IDEN3_DIR)/JohnDoe
-	@echo "JohnDoe's ID:" $(JD_ID)
 
+.PHONY: AliceWonder
 AliceWonder: $(IDEN3_DIR)/AliceWonder
-	@echo "AliceWonder's ID:" $(AW_ID)
 
+.PHONY: identities
 identities: JohnDoe AliceWonder
 
+.PHONY: issue-claim
 issue-claim: identities
-	go run main.go claim --issuer JohnDoe --holder $(AW_ID) --schemaType AgeCredential --indexDataA 19950704 --nonce $(CLAIM_NONCE)
+	go run main.go claim --issuer JohnDoe --holder AliceWonder --schemaType AgeCredential --indexDataA 19950704
 
-receive-claim: identities
-	mkdir -p $(RECEIVED_CLAIMS_DIR)
-	cp $(ISSUED_CLAIM_PATH) $(RECEIVED_CLAIMS_DIR)/
+.PHONY: issue-claim-fails-challenge
+issue-claim-fails-challenge: identities
+	go run main.go claim --issuer JohnDoe --holder AliceWonder --schemaType AgeCredential --indexDataA 20220704
 
+.PHONY: respond-to-challenge
 respond-to-challenge:
 	go run main.go respond-to-challenge --holder AliceWonder --qrcode ~/Downloads/challenge-qr.png
 
@@ -44,5 +38,6 @@ $(IDEN3_DIR)/JohnDoe:
 $(IDEN3_DIR)/AliceWonder:
 	go run main.go init --name AliceWonder
 
+.PHONY: clean
 clean:
 	rm -fr $(IDEN3_DIR)
