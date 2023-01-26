@@ -8,10 +8,10 @@ success-test: identities issue-claim respond-to-challenge
 failure-test: identities issue-claim-fails-challenge respond-to-challenge
 
 .PHONY: JohnDoe
-JohnDoe: $(IDEN3_DIR)/JohnDoe
+JohnDoe: $(IDEN3_WORKDIR)/JohnDoe
 
 .PHONY: AliceWonder
-AliceWonder: $(IDEN3_DIR)/AliceWonder
+AliceWonder: $(IDEN3_WORKDIR)/AliceWonder
 
 .PHONY: identities
 identities: JohnDoe AliceWonder
@@ -28,12 +28,12 @@ issue-claim-fails-challenge: identities
 respond-to-challenge:
 	go run main.go respond-to-challenge --holder AliceWonder --qrcode ~/Downloads/challenge-qr.png
 
-$(IDEN3_DIR)/JohnDoe:
+$(IDEN3_WORKDIR)/JohnDoe:
 	go run main.go init --name JohnDoe
 
-$(IDEN3_DIR)/AliceWonder:
+$(IDEN3_WORKDIR)/AliceWonder:
 	go run main.go init --name AliceWonder
 
 .PHONY: clean
 clean:
-	rm -fr $(IDEN3_DIR)
+	rm -fr $(IDEN3_WORKDIR)
