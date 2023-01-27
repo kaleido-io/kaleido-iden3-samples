@@ -1,3 +1,5 @@
+IDEN3_WORKDIR := $(HOME)/iden3
+
 .PHONY: all
 all: success-test
 
@@ -37,3 +39,7 @@ $(IDEN3_WORKDIR)/AliceWonder:
 .PHONY: clean
 clean:
 	rm -fr $(IDEN3_WORKDIR)
+
+.PHONY: clean-ids
+clean-ids:
+	cd $(IDEN3_WORKDIR) && rm -fr JohnDoe AliceWonder identities.json
