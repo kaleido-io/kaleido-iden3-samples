@@ -14,26 +14,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const { ethers, upgrades } = require('hardhat');
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
-const pathOutputJson = path.join(os.homedir(), './iden3/deploy_output.json');
+const { ethers, upgrades } = require("hardhat");
+const os = require("os");
+const fs = require("fs");
+const path = require("path");
+const workDir = process.env.IDEN3_WORKDIR || path.join(os.homedir(), "iden3");
+const pathOutputJson = path.join(workDir, "./deploy_output.json");
 
 async function main() {
-  const Verifier = await ethers.getContractFactory('Verifier');
+  const Verifier = await ethers.getContractFactory("Verifier");
 
-  console.log('deploying verifier');
+  console.log("deploying verifier");
   const verifier = await Verifier.deploy();
   await verifier.deployed();
 
-  console.log('deploying state');
-  const State = await ethers.getContractFactory('State');
+  console.log("deploying state");
+  const State = await ethers.getContractFactory("State");
   const state = await upgrades.deployProxy(State, [verifier.address]);
   await state.deployed();
 
-  console.log(`Verifier contract deployed to ${verifier.address} from ${(await ethers.getSigners())[0].address}`);
-  console.log(`State contract deployed to ${state.address} from ${(await ethers.getSigners())[0].address}`);
+  console.log(
+    `Verifier contract deployed to ${verifier.address} from ${
+      (await ethers.getSigners())[0].address
+    }`
+  );
+  console.log(
+    `State contract deployed to ${state.address} from ${
+      (await ethers.getSigners())[0].address
+    }`
+  );
 
   const outputJson = {
     state: state.address,

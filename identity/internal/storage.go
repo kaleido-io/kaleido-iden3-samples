@@ -46,26 +46,25 @@ CREATE TABLE IF NOT EXISTS mt_roots (
 	deleted_at BIGINT
 );`
 
-func initMerkleTreeDBs(name string) (*sql.DB, *sql.DB, *sql.DB, error) {
-	claimsDB, err := newMerkleDB(name, "claims")
+func initMerkleTreeDBs(workDir string) (*sql.DB, *sql.DB, *sql.DB, error) {
+	claimsDB, err := newMerkleDB(filepath.Join(workDir, fmt.Sprintf("private/%s.db", "claims")))
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	revsDB, err := newMerkleDB(name, "revocations")
+	revsDB, err := newMerkleDB(filepath.Join(workDir, fmt.Sprintf("public/%s.db", "revocations")))
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	rootsDB, err := newMerkleDB(name, "roots")
+	rootsDB, err := newMerkleDB(filepath.Join(workDir, fmt.Sprintf("public/%s.db", "roots")))
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return claimsDB, revsDB, rootsDB, nil
 }
 
-func newMerkleDB(id, tree string) (*sql.DB, error) {
-	homedir, _ := os.UserHomeDir()
-	dbPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/%s.db", id, tree))
-	_ = os.MkdirAll(filepath.Dir(dbPath), os.ModePerm)
+func newMerkleDB(dbPath string) (*sql.DB, error) {
+	err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm)
+	assertNoError(err)
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		fmt.Printf("Failed to open sqlite db: %s\n", err)

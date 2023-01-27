@@ -93,46 +93,20 @@ func RespondToChallenge() {
 	//
 	// Before responding to the challenge, we need to first load the private key of the holder
 	//
+
 	ctx := context.Background()
-	fmt.Println("Loading holder state")
-	claimsTree, _, _, err := loadState(ctx, holderNameStr)
-	assertNoError(err)
+	fmt.Println("Loading holder identity")
+	holderIdentity := GetIdentityFromIdentityStorage(*holderNameStr, false)
+	privKey := holderIdentity.Private.PrivateKeys[DEFAULT_PRIVATE_KEY_NAME]
+	holderId := holderIdentity.Public.ID
 
-	fmt.Println("Loading holder private key")
-	privKey, err := loadPrivateKey(*holderNameStr)
-	assertNoError(err)
+	holderAuthTreeState := *holderIdentity.CalculateCurrentState()
 
-	fmt.Println("Loading holder ID")
-	holderId, err := loadUserId(*holderNameStr)
-	assertNoError(err)
-
-	// from the recovered private key, we can derive the public key and the auth claim
-	pubKey := privKey.Public()
-	authClaimRevNonce := uint64(1)
-	authSchemaHash, _ := getAuthClaimSchemaHash()
-	// An auth claim includes the X and Y curve coordinates of the public key, along with the revocation nonce
-	holderAuthClaim, _ := core.NewClaim(authSchemaHash, core.WithIndexDataInts(pubKey.X, pubKey.Y), core.WithRevocationNonce(authClaimRevNonce))
-	hIndex, _ := holderAuthClaim.HIndex()
-	// generate a merkle proof that the issuer's auth claim is not revoked, based on the latest claims and revocations trees
-	holderAuthMTProof, _, _ := claimsTree.GenerateProof(ctx, hIndex, claimsTree.Root())
-	// holderAuthNonRevMTProof, _, _ := revocationsTree.GenerateProof(ctx, new(big.Int).SetInt64(int64(authClaimRevNonce)), revocationsTree.Root())
-	holderAuthState, err := merkletree.HashElems(
-		claimsTree.Root().BigInt(),
-		// TODO: should these be the current rev tree and roots tree instead?
-		merkletree.HashZero.BigInt(),
-		merkletree.HashZero.BigInt())
-	assertNoError(err)
-	holderAuthTreeState := circuits.TreeState{
-		State:      holderAuthState,
-		ClaimsRoot: claimsTree.Root(),
-		// TODO: should these be the current rev tree and roots tree instead?
-		RevocationRoot: &merkletree.HashZero,
-		RootOfRoots:    &merkletree.HashZero,
-	}
-
+	authClaimWithProof := holderIdentity.GetAuthClaimWithProofForKey(ctx, DEFAULT_PRIVATE_KEY_NAME)
+	holderAuthMTProof, err := merkletree.NewProofFromBytes(authClaimWithProof.AuthClaimMtpBytes)
 	inputsAuthClaim := circuits.Claim{
 		//Schema:    authClaim.Schema,
-		Claim:     holderAuthClaim,
+		Claim:     &authClaimWithProof.AuthClaim,
 		Proof:     holderAuthMTProof,
 		TreeState: holderAuthTreeState,
 		NonRevProof: &circuits.ClaimNonRevStatus{
@@ -155,21 +129,21 @@ func RespondToChallenge() {
 	}
 
 	issuerIdBigInt := &big.Int{}
-	issuerIdBigInt.SetString(targetClaim.IssuerAuthState.UserID, 10)
+	issuerIdBigInt.SetString(targetClaim.IssuerAuthClaimWithProof.UserID, 10)
 	issuerId, err := core.IDFromInt(issuerIdBigInt)
 	assertNoError(err)
 
 	issuerAuthTreeState := circuits.TreeState{
-		State:          targetClaim.IssuerAuthState.IDState,
-		ClaimsRoot:     targetClaim.IssuerAuthState.ClaimsTreeRoot,
+		State:          targetClaim.IssuerAuthClaimWithProof.IDState,
+		ClaimsRoot:     targetClaim.IssuerAuthClaimWithProof.ClaimsTreeRoot,
 		RevocationRoot: &merkletree.HashZero,
 		RootOfRoots:    &merkletree.HashZero,
 	}
 
-	issuerAuthClaimMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerAuthState.AuthClaimMtpBytes)
+	issuerAuthClaimMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerAuthClaimWithProof.AuthClaimMtpBytes)
 	assertNoError(err)
 
-	issuerAuthClaimNonRevMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerAuthState.AuthClaimNonRevMtpBytes)
+	issuerAuthClaimNonRevMTP, err := merkletree.NewProofFromBytes(targetClaim.IssuerAuthClaimWithProof.AuthClaimNonRevMtpBytes)
 	assertNoError(err)
 
 	x := &big.Int{}
@@ -186,7 +160,7 @@ func RespondToChallenge() {
 		IssuerTreeState:    issuerAuthTreeState,
 		IssuerAuthClaimMTP: issuerAuthClaimMTP,
 		Signature:          claimSignature,
-		IssuerAuthClaim:    &targetClaim.IssuerAuthState.AuthClaim,
+		IssuerAuthClaim:    &targetClaim.IssuerAuthClaimWithProof.AuthClaim,
 		IssuerAuthNonRevProof: circuits.ClaimNonRevStatus{
 			TreeState: issuerAuthTreeState,
 			Proof:     issuerAuthClaimNonRevMTP,
@@ -216,8 +190,7 @@ func RespondToChallenge() {
 }
 
 func persistInputsForChallenge(name string, inputs circuits.AtomicQuerySigInputs) error {
-	homedir, _ := os.UserHomeDir()
-	inputsPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/challenge.json", name))
+	inputsPath := filepath.Join(getWorkDir(name), "challenge.json")
 	content, err := inputs.InputsMarshal()
 	if err != nil {
 		return err
@@ -231,8 +204,7 @@ func persistInputsForChallenge(name string, inputs circuits.AtomicQuerySigInputs
 }
 
 func loadClaim(name string) (*ClaimInputsForSigCircuit, error) {
-	homedir, _ := os.UserHomeDir()
-	claimsPath := filepath.Join(homedir, fmt.Sprintf("iden3/%s/received-claims", name))
+	claimsPath := filepath.Join(getWorkDir(name), "private/received-claims")
 	files, err := os.ReadDir(claimsPath)
 	if err != nil {
 		return nil, err

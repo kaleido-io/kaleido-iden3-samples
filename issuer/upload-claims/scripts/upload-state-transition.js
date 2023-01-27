@@ -14,84 +14,141 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const { utils } = require('ffjavascript');
+const { utils } = require("ffjavascript");
 const { unstringifyBigInts } = utils;
-const hre = require('hardhat');
+const hre = require("hardhat");
 const ethers = hre.ethers;
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+const os = require("os");
+const fs = require("fs");
+const path = require("path");
 
 const identityName = process.env.IDEN3_NAME;
-
-const pathOutputJson = path.join(os.homedir(), `iden3/deploy_output.json`);
-const genesisJson = path.join(os.homedir(), `iden3/${identityName}/genesis_state.json`);
-const zkinputJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_inputs.json`);
-
+const workDir = process.env.IDEN3_WORKDIR || path.join(os.homedir(), "iden3");
+const pathOutputJson = path.join(workDir, `deploy_output.json`);
+const genesisJson = path.join(
+  workDir,
+  `${identityName}/private/states/genesis_state.json`
+);
+const zkinputJson = path.join(
+  workDir,
+  `${identityName}/private/states/stateTransition_inputs.json`
+);
 
 // The following files are for record purpose to assist diagnose
-const zkpreviousJson = path.join(os.homedir(), `iden3/${identityName}/stateTransition_inputs_previous.json`);
-const treeStatesJson = path.join(os.homedir(), `iden3/${identityName}/treeStates.json`);
-const treeStatesPreviousJson = path.join(os.homedir(), `iden3/${identityName}/treeStates_previous.json`);
-const archiveFolder = path.join(os.homedir(), `iden3/${identityName}/archived_transitions`);
-const { generateWitness } = require('./snark/generate_witness');
-const { prove } = require('./snark/prove');
-const { verify } = require('./snark/verify');
+const zkpreviousJson = path.join(
+  workDir,
+  `${identityName}/private/states/stateTransition_inputs_previous.json`
+);
+const treeStatesJson = path.join(
+  workDir,
+  `${identityName}/private/states/treeStates.json`
+);
+const treeStatesPreviousJson = path.join(
+  workDir,
+  `${identityName}/private/states/treeStates_previous.json`
+);
+const archiveFolder = path.join(
+  workDir,
+  `${identityName}/private/states/archived_transitions`
+);
+const { generateWitness } = require("./snark/generate_witness");
+const { prove } = require("./snark/prove");
+const { verify } = require("./snark/verify");
 
-function archiveOldFiles () {
-  const timestampString = Date.now().toString()
+function archiveOldFiles() {
+  const timestampString = Date.now().toString();
   if (!fs.existsSync(archiveFolder)) {
-    fs.mkdirSync(archiveFolder)
-  } 
+    fs.mkdirSync(archiveFolder);
+  }
   if (fs.existsSync(zkpreviousJson)) {
-    fs.renameSync(zkpreviousJson, path.join(archiveFolder, `${timestampString}-stateTransition_inputs_previous.json`));
+    fs.renameSync(
+      zkpreviousJson,
+      path.join(
+        archiveFolder,
+        `${timestampString}-stateTransition_inputs_previous.json`
+      )
+    );
   }
   if (fs.existsSync(treeStatesPreviousJson)) {
-    fs.renameSync(treeStatesPreviousJson, path.join(archiveFolder, `${timestampString}-treeStates_previous.json`));
+    fs.renameSync(
+      treeStatesPreviousJson,
+      path.join(archiveFolder, `${timestampString}-treeStates_previous.json`)
+    );
   }
 }
 
 async function main() {
   if (!fs.existsSync(zkinputJson)) {
-    throw new Error(`No state transition input file found for ${identityName} at: ${zkinputJson}`);
+    throw new Error(
+      `No state transition input file found for ${identityName} at: ${zkinputJson}`
+    );
   }
   archiveOldFiles();
   let stateContractAddress;
-  if (hre.network.name === 'mumbai') {
-    stateContractAddress = '0x46Fd04eEa588a3EA7e9F055dd691C688c4148ab3';
-  } else if (hre.network.name === 'kaleido') {
+  if (hre.network.name === "mumbai") {
+    stateContractAddress = "0x46Fd04eEa588a3EA7e9F055dd691C688c4148ab3";
+  } else if (hre.network.name === "kaleido") {
     let content = fs.readFileSync(pathOutputJson);
     if (!content) {
-      throw new Error('Must run the deploy script first');
+      throw new Error("Must run the deploy script first");
     }
     const { state } = JSON.parse(content);
     stateContractAddress = state;
   }
 
-  const contract = await ethers.getContractAt('State', stateContractAddress);
+  const contract = await ethers.getContractAt("State", stateContractAddress);
 
   // gather the inputs for generating the proof
   if (!fs.existsSync(zkinputJson)) {
-    console.log(`State transition skipped as new state detected - no state input file found at: ${zkinputJson}`)
-    process.exit(0)
+    console.log(
+      `State transition skipped as new state detected - no state input file found at: ${zkinputJson}`
+    );
+    process.exit(0);
   }
   let genesisInfo = JSON.parse(fs.readFileSync(genesisJson));
   let identityInfo = {
-    userID: genesisInfo.userID
-  }
+    userID: genesisInfo.userID,
+  };
   const issuerId = genesisInfo.userID;
-  const stateTransitionInputs = JSON.parse(fs.readFileSync(zkinputJson))
-  
+  const stateTransitionInputs = JSON.parse(fs.readFileSync(zkinputJson));
+
   const oldState = stateTransitionInputs.oldUserState;
   const newState = stateTransitionInputs.newUserState;
   const isOldStateGenesis = stateTransitionInputs.isOldStateGenesis;
-  
+
+  let existingState = await contract.getState(issuerId);
+  let existingStateString = existingState.toString();
+  console.log("State before transaction: ", existingStateString);
+  if (existingStateString !== oldState) {
+    if (existingStateString === newState) {
+      console.log(
+        "State on chain is already the latest, rename the local state input files to a previous state file"
+      );
+      fs.renameSync(zkinputJson, zkpreviousJson);
+      fs.renameSync(treeStatesJson, treeStatesPreviousJson);
+      process.exit(0);
+    } else {
+      if (isOldStateGenesis && existingStateString === "0") {
+        // genesis state, continue
+      } else {
+        console.log(
+          `The recorded identity state: ${existingStateString} does not equal to the old identity state: ${oldState} in file ${zkinputJson}.`
+        );
+        process.exit(1);
+      }
+    }
+  } else {
+    if (existingStateString === newState) {
+      console.log("No state change detected, ignoring this operation...");
+      process.exit(0);
+    }
+  }
+
   let inputs = {
     ...identityInfo,
-    ...stateTransitionInputs
-  }
+    ...stateTransitionInputs,
+  };
   console.log(inputs);
-
 
   await generateWitness(inputs);
   const { proof, publicSignals } = await prove();
@@ -101,30 +158,19 @@ async function main() {
   const a = result[0];
   const b = result[1];
   const c = result[2];
-
-  let existingState = await contract.getState(issuerId);
-  let existingStateString = existingState.toString()
-  console.log('State before transaction: ', existingStateString);
-  if (existingStateString !== oldState) {
-    if (existingStateString === newState) {
-      console.log('State on chain is already the latest, rename the local state input files to a previous state file');
-      fs.renameSync(zkinputJson, zkpreviousJson);
-      fs.renameSync(treeStatesJson, treeStatesPreviousJson);
-      process.exit(0);
-    } else {
-      if (isOldStateGenesis && existingStateString === "0") {
-        // genesis state, continue
-      } else {
-        console.log(`The recorded identity state: ${existingStateString} does not equal to the old identity state: ${oldState} in file ${zkinputJson}.`);
-        process.exit(1);
-      }
-    }
-  }
-  console.log('Invoking state transaction on chain ...');
-  const tx = await contract.transitState(issuerId, oldState, newState, isOldStateGenesis === "1", a, b, c);
+  console.log("Invoking state transaction on chain ...");
+  const tx = await contract.transitState(
+    issuerId,
+    oldState,
+    newState,
+    isOldStateGenesis === "1",
+    a,
+    b,
+    c
+  );
   await tx.wait();
   let updatedState = await contract.getState(issuerId);
-  console.log('State after transaction: ', updatedState.toString());
+  console.log("State after transaction: ", updatedState.toString());
   // clean up the used inputs
   fs.renameSync(zkinputJson, zkpreviousJson);
   fs.renameSync(treeStatesJson, treeStatesPreviousJson);
@@ -135,9 +181,9 @@ async function groth16ExportSolidityCallData(_proof, _pub) {
   const proof = unstringifyBigInts(_proof);
   const pub = unstringifyBigInts(_pub);
 
-  let inputs = '';
+  let inputs = "";
   for (let i = 0; i < pub.length; i++) {
-    if (inputs != '') inputs = inputs + ',';
+    if (inputs != "") inputs = inputs + ",";
     inputs = inputs + p256(pub[i]);
   }
 
@@ -154,7 +200,7 @@ async function groth16ExportSolidityCallData(_proof, _pub) {
 
 function p256(n) {
   let nstr = n.toString(16);
-  while (nstr.length < 64) nstr = '0' + nstr;
+  while (nstr.length < 64) nstr = "0" + nstr;
   nstr = `0x${nstr}`;
   return nstr;
 }
