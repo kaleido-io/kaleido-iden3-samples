@@ -53,41 +53,62 @@ const utf8 = (str) => new TextEncoder().encode(str);
 // GetQR returns auth request
 async function getQR(req, res) {
   // Audience is verifier id
-  const sessionId = 1;
+  console.log("req.query:", req.query);
+  const sessionId = parseInt(req.query.sessionId || '1');
   const callbackURL = '/api/callback';
   const audience = '1125GJqgw6YEsKFwj63GY87MMxPL9kwDKxPUiwMLNZ';
-  const schemaUrl = 'https://schema.polygonid.com/jsonld/kyc.json-ld';
-  const schemaType = 'CountryOfResidenceCredential';  // HACK: using this type from the available KYC schema for expedience
   const circuitId = 'credentialAtomicQuerySig';
-
   const uri = `${publicHost}${callbackURL}?sessionId=${sessionId}`;
 
   // Generate request for basic authentication
-  const challenge = '12345'; // supposed to be unique for every interaction
+  const challenge = req.query.challenge || '12345'; // supposed to be unique for every interaction
   const request = auth.createAuthorizationRequestWithMessage('test flow', challenge, audience, uri);
 
   request.id = '7f38a193-0918-4a48-9fac-36adfdb8b542';
   request.thid = '7f38a193-0918-4a48-9fac-36adfdb8b542';
 
+  let query;
+  const { example } = req.query;
+  if (!example || example === 'kyc') {
+    query = {
+      allowedIssuers: ['*'],
+      schema: {
+        url: 'https://schema.polygonid.com/jsonld/kyc.json-ld',
+        type: 'AgeCredential',
+      },
+      req: {
+        birthDay: {
+          $lt: 20000101, // birthDay field prior to 2000/01/01,
+        },
+      },
+    };
+  } else if (example === 'docver') {
+    // The credentialAtomicQuerySig circuit is currently limited to checking a single slot,
+    // so we combine the doc ID and status in a single index slot.
+    // TODO: separate doc ID and status into separate claim slots (index and value, respectively).
+    const docStatus = "PASSPORT/CA/ZZ123456789:VERIFIED";
+    const docStatusHash = Poseidon.hashBytes(utf8(docStatus)).toString();
+    query = {
+      allowedIssuers: ['*'],
+      schema: {
+        // TODO: change URL to kaleido main branch, or perhaps use S3
+        url: 'https://raw.githubusercontent.com/nedgar/kaleido-iden3-samples/docver-schema/identity/schemas/docver.json-ld',
+        type: 'DocumentStatus',
+      },
+      req: {
+        docStatusHash: {
+          $eq: docStatusHash,
+        },
+      },    
+    };
+  }
+
   // Add request for a specific proof
-  const docStatus = "PASSPORT/CA/ZZ123456789:VERIFIED";
-  const docStatusHash = Poseidon.hashBytes(utf8(docStatus)).toString()
   const proofRequest = {
     id: challenge,
     circuit_id: circuitId,
-    rules: {
-      query: {
-        allowedIssuers: ['*'],
-        schema: {
-          type: schemaType,
-          url: schemaUrl,
-        },
-        req: {
-          countryCode: {  // HACK: using the countryCode field (in IndexA slot) for expedience
-            $eq: docStatusHash,
-          },
-        },
-      },
+    rules: {  // FIXME: shouldn't this be an array?
+      query,
     },
   };
 

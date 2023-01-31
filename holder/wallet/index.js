@@ -182,6 +182,7 @@ const VALUE_SLOT_B = 7;
 const SLOT_NAME_TO_INDEX = {
   birthDay: INDEX_SLOT_A,
   countryCode: INDEX_SLOT_A,
+  docStatusHash: INDEX_SLOT_A,
 };
 
 async function generateProof(challenge) {
