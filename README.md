@@ -313,7 +313,7 @@ Now, acting as the holder, we can use the Golang program's `respond-to-challenge
 Before running the command, save the QR code image from the web site to a **PNG or JPEG file** (in the real world, the holder would use the wallet app to scan the QR code).
 
 ```
-$ go run main.go respond-to-challenge --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
+$ go run main.go respond-to-challenge --holder AliceWonder --qrcode ~/Downloads/challenge-qr.png
 ```
 
 Here,
@@ -340,7 +340,7 @@ We use snark.js again to generate the proof, using the inputs that have been gen
 ```
 $ cd holder/wallet
 $ npm i
-$ node index.js --holder AliceWonder --qrcode /Users/alice/Downloads/challenge-qr.png
+$ node index.js --holder AliceWonder --qrcode ~/Downloads/challenge-qr.png
 ```
 
 Example verification success output:

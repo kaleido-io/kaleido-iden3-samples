@@ -152,6 +152,10 @@ async function getChallengeInputs() {
   const content = fs.readFileSync(HOLDER_CHALLENGE_FILE);
   const inputs = JSON.parse(content);
   return {
+    operator: inputs.operator,
+    slotIndex: inputs.slotIndex,
+    timestamp: inputs.timestamp,
+    value: inputs.value,
     challenge: inputs.challenge,
     challengeSignatureR8x: inputs.challengeSignatureR8x,
     challengeSignatureR8y: inputs.challengeSignatureR8y,
@@ -190,82 +194,11 @@ async function generateProof(challenge) {
     const msg = `As of now only the 'birthDay' property is supported in the challenge query. Had ${queryProperty}`;
     throw new Error(msg);
   }
-  const queryExp = queryRequest[queryProperty];
-  const exp = Object.entries(queryExp)[0];
 
   const inputs = {
     ...holderInputs,
     ...claimInputs,
     ...challengeInputs,
-    slotIndex: 2, // index of slot A is where we store the claim's birthday (eg. "20000704")
-    operator: translateOperator(exp[0]), // the "EQUAL" operator
-    value: [
-      exp[1],
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-    ],
-    timestamp: Math.floor(Date.now() / 1000),
   };
   console.log(inputs);
   await generateWitness(inputs, WITNESS_FILE);

@@ -25,9 +25,11 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/iden3/go-circuits"
@@ -78,16 +80,17 @@ func RespondToChallenge() {
 		os.Exit(1)
 	}
 
-	challenge := &big.Int{}
+	challengeId := &big.Int{}
+	var challenge *Challenge
 	if *qrImgStr != "" {
 		challengeObj, err := decodeQRImage(*qrImgStr)
 		assertNoError(err)
-		cobj, err := decodeChallenge(challengeObj)
+		challenge, err = decodeChallenge(challengeObj)
 		assertNoError(err)
-		fmt.Printf("Using the challenge %+v decoded from the QR Code\n", cobj)
-		challenge.SetString(cobj.Message, 10)
+		fmt.Printf("Using the challenge %+v decoded from the QR Code\n", challenge)
+		challengeId.SetString(challenge.Message, 10)
 	} else {
-		challenge.SetString(*challengeStr, 10)
+		challengeId.SetString(*challengeStr, 10)
 	}
 
 	//
@@ -177,13 +180,30 @@ func RespondToChallenge() {
 		IssuerID:       &issuerId,
 		SignatureProof: claimIssuerSignature,
 	}
+	fmt.Println(challenge.Scope.Queries[0].Operator)
+	operator, err := strconv.Atoi(challenge.Queries[0].Operator)
+	dob := big.NewInt(int64(math.Round(challenge.Queries[0].Value.(float64))))
+	values := []*big.Int{}
+	values = append(values, dob)
+	i := 1
+	for i < 64 {
+		// must have 64 items
+		values = append(values, big.NewInt(0))
+		i++
+	}
+	assertNoError(err)
 	inputs := circuits.AtomicQuerySigInputs{
 		ID:               holderId,
 		AuthClaim:        inputsAuthClaim,
-		Challenge:        challenge,
-		Signature:        privKey.SignPoseidon(challenge),
+		Challenge:        challengeId,
+		Signature:        privKey.SignPoseidon(challengeId),
 		CurrentTimeStamp: time.Now().Unix(),
 		Claim:            inputsUserClaim,
+		Query: circuits.Query{
+			SlotIndex: 2,
+			Operator:  operator,
+			Values:    values,
+		},
 	}
 
 	persistInputsForChallenge(*holderNameStr, inputs)
