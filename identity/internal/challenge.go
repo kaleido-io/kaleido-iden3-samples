@@ -200,7 +200,7 @@ func RespondToChallenge() {
 		CurrentTimeStamp: time.Now().Unix(),
 		Claim:            inputsUserClaim,
 		Query: circuits.Query{
-			SlotIndex: 2,
+			SlotIndex: 2, // TODO: figure out the index by looking up the schema
 			Operator:  operator,
 			Values:    values,
 		},
