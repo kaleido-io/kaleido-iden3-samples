@@ -26,6 +26,10 @@ issue-claim: identities
 issue-claim-fails-challenge: identities
 	go run main.go claim --issuer JohnDoe --holder AliceWonder --schemaType AgeCredential --indexDataA 20220704
 
+.PHONY: issue-docver-claim
+issue-docver-claim: identities
+	go run main.go claim --issuer JohnDoe --holder AliceWonder --schemaFile schemas/docver.json-ld --schemaType DocumentStatus --indexDataA '"PASSPORT/CA/ZZ123456789:VERIFIED"' --expiryDays 90
+
 .PHONY: respond-to-challenge
 respond-to-challenge:
 	go run main.go respond-to-challenge --holder AliceWonder --qrcode ~/Downloads/challenge-qr.png
@@ -43,3 +47,7 @@ clean:
 .PHONY: clean-ids
 clean-ids:
 	cd $(IDEN3_WORKDIR) && rm -fr JohnDoe AliceWonder identities.json
+
+.PHONY: clean-claims
+clean-claims:
+	cd $(IDEN3_WORKDIR) && rm -fr JohnDoe/private/claims/genericClaim-*.json AliceWonder/private/received-claims/genericClaim-*.json AliceWonder/challenge.json
