@@ -9,17 +9,14 @@
         content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet"
         href="styles.css">
-    <script src="index.js"></script>
-    <title>Verifier Demo</title>
+    <script src="lib/qrcode.min.js"></script>
+    <script src="qr.js"></script>
+    <title>Verifier: Challenge QR</title>
 </head>
 
 <body>
     <main class="main-content">
-        <div id="choices">
-            <p>Choose your challenge:</p>
-            <button class="btn-qr" data-example="kyc_age">KYC: Check age</button>
-            <button class="btn-qr" data-example="docver_passport">DocVer: Check passport</button>
-        </div>
+        <div id="qrcode"></div>
     </main>
 </body>
 
