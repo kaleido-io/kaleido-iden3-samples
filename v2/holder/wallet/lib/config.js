@@ -3,7 +3,7 @@ module.exports = {
     issuerServerUrl: 'http://localhost:3001',
   },
   kaleido: {
-    contractAddress: '0x508e7AcF1491eFf37eb11aA9ad014b8eF9f3705A',
+    contractAddress: '0xd94Dae61E4A337C526527a79BB222f67C2fB6B81',
     url: {
       url: 'https://u0nabcdef4-u0cabcdefs-rpc.us0-aws.kaleido.io/',
       user: 'u0mabcdefg',

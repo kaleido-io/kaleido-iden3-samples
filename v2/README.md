@@ -167,7 +167,7 @@ api:
 iden3:
   verificationKeysDir: /kaleido-iden3-samples/v2/verifier/pkg/circuits
   ethUrl: https://u0abcdefgh:B4_qAkLQA5XuGMbla3L4EK2hn8ahsQrdO-UYsF9d6xk@u0nabcdef4-u0ghijklms-rpc.us0-aws.kaleido.io
-  ethContractAddress: '0xf368Cade792815BDC25b5d7eE3F30570f59A373B'
+  ethContractAddress: '0xd94Dae61E4A337C526527a79BB222f67C2fB6B81'
   publicHost: http://localhost:8000
   self: did:iden3:tTjhYsRM2B6fbbsuQhubfPkQiUrGwYY6QEznBQxn6
 ```
