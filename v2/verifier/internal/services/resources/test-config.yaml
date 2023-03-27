@@ -1,0 +1,31 @@
+api:
+  address: 0.0.0.0
+  port: 8000
+  readTimeout: 15s
+  requestMaxtimeout: 10m
+  requesttimeout: 20s
+  shutdowntimeout: 10s
+  tls:
+    enabled: false
+    writetimeout: 15s
+cors:
+  credentials: true
+  debug: false
+  enabled: true
+  headers:
+    - '*'
+  maxage: 600
+  methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+  origins:
+    - '*'
+iden3:
+  ethcontractaddress: '0xe4BAd4a8636d79E918fFA9Db72502fCf56a77D2D'
+  ethurl: https://user:password@u0nc4noce4-u0c5qcrhgs-rpc.us0-aws.kaleido.io
+  publichost: http://localhost:8000
+  verificationKeysDir: /Users/alice/kaleido-iden3-verifier/pkg/circuits
+  self: did:iden3:tTjhYsRM2B6fbbsuQhubfPkQiUrGwYY6QEznBQxn6
