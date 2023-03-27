@@ -2,6 +2,8 @@
 
 Sample code for using the [Iden3 protocol](https://docs.iden3.io/protocol/spec/) to issue verifiable claims and verify them.
 
+This is the v1 version of the iden3 protocol. It doesn't have support for the [w3c verifiable credentials](https://www.w3.org/TR/vc-data-model/) standard. That support is introduced in the [v2](/v2) version of the protocol.
+
 # Getting Started
 
 The sample covers the 3 roles involved in a typical Self Sovereign Identity use case:
@@ -21,9 +23,10 @@ The iden3 protocol relies on zkSNARK for generating zero knowledge proofs at var
 
 > The zkp generation code in this sample uses the `groth16` library under the cover, which requires circuit-specific trusted setup. That's why we have different proving keys (the `.zkey` files) and verification keys (the `verification_keys.json` files) for each of the circuits described above
 
-
 ## Before you start
+
 All of the files generated while following this tutorial will be stored in a single directory. You can specify the directory to use using the following command, the directory will be created if it doesn't exist:
+
 ```bash
 export IDEN3_WORKDIR=~/gitrepos/kaleido-iden3-samples/iden3
 ```
@@ -64,7 +67,7 @@ For each identity, the program creates the following resources under the `$IDEN3
 - identity name (e.g. `JohnDoe/`): this folder holds the resources specific to the identity, including:
   - `private`: this folder stores private resource of the identity
     - `keys`: this folder stores all private keys owned by the identity (on the [Baby Jubjub](https://docs.iden3.io/getting-started/babyjubjub/) curve). Keys are strictly private data and must only be accessed by the owning identity.
-    - `claims`: this folder stores all claims that are issued by the identity when acting as an **Issuer**. Copies of claims will be distributed to different identities upon requests. 
+    - `claims`: this folder stores all claims that are issued by the identity when acting as an **Issuer**. Copies of claims will be distributed to different identities upon requests.
     - `received-claims` this folder stores all claims that are issued to the identity when acting as a **Holder**.
     - `states` this folder contains all the identity states information.
       - `genesis_state.json ` genesis state of the identity, including its public user ID, a base58 encoded string, and the issuer identity's own authentication claim ([schema](https://github.com/iden3/claim-schema-vocab/blob/main/schemas/json-ld/auth.json-ld) here)
@@ -232,7 +235,7 @@ Claim issued by "JohnDoe" using key "defaultKey" is received by holder "AliceWon
 
 The issued claim is persisted in the folder `iden3/JohnDoe/private/claims`. The file name is `genericClaim-[schemaHash]-[issuer name]-[issuer key name]-[holder name].json`.
 
-Note: since we are using signature-based proofs for claims, rather than MTP (Merkle Tree Proof)-based, there is no need to update the on-chain state for the newly issued claim. 
+Note: since we are using signature-based proofs for claims, rather than MTP (Merkle Tree Proof)-based, there is no need to update the on-chain state for the newly issued claim.
 With this approach, we only need to store the issuer's identity genesis state on-chain.
 
 ## Holder "Downloads" the Claim to their "Wallet"
@@ -242,7 +245,6 @@ A real holder's wallet is typically a mobile app. In this sample, we use the Gol
 Therefore, the Claim has already been downloaded into holder's private folders in the previous step.
 
 The received claim is persisted in the folder `iden3/AliceWonder/private/received-claims`. The file name is `genericClaim-[schemaHash]-[issuer name]-[issuer key name]-[holder name]-via-signature.json`.
-
 
 ## Verifier Presents a Claim Challenge
 
