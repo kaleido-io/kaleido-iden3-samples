@@ -5,11 +5,11 @@ go 1.19
 require (
 	github.com/getkin/kin-openapi v0.107.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/firefly-common v1.2.1
+	github.com/hyperledger/firefly-common v1.2.8-0.20230327145256-0941976e48a4
 	github.com/iden3/go-circuits v1.0.2
 	github.com/iden3/go-iden3-auth v1.0.0
 	github.com/iden3/iden3comm v1.0.0-beta.0
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/text v0.7.0
@@ -45,7 +45,7 @@ require (
 	github.com/iden3/go-rapidsnark/verifier v0.0.4-0.20221129112904-b9f8680ca8e2 // indirect
 	github.com/iden3/go-rapidsnark/witness v0.0.4-0.20221129112904-b9f8680ca8e2 // indirect
 	github.com/iden3/go-schema-processor v1.0.0 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/invopop/yaml v0.2.0 // indirect
 	github.com/ipfs/go-cid v0.3.2 // indirect
 	github.com/ipfs/go-ipfs-api v0.3.0 // indirect
@@ -112,5 +112,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
-
-replace github.com/hyperledger/firefly-common => ./firefly-common

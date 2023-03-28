@@ -36,7 +36,7 @@ var StatusRoute = &ffapi.Route{
 }
 
 var CreateChallengeRoute = &ffapi.Route{
-	Name:            "Challenge",
+	Name:            "CreateChallenge",
 	Path:            "challenges",
 	Method:          http.MethodPost,
 	Description:     "Generate a challenge message",
@@ -54,7 +54,7 @@ var CreateChallengeRoute = &ffapi.Route{
 }
 
 var ChallengeStatusRoute = &ffapi.Route{
-	Name:        "Challenge",
+	Name:        "ChallengeStatus",
 	Path:        "challenges/{threadId}",
 	Method:      http.MethodGet,
 	Description: "Get the status of a challenge",
