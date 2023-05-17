@@ -152,22 +152,6 @@ Take note of the `identifier`, which is the DID for the issuer to be used in sub
 
 A sample verifier server is provided in the [verifier](/v2/verifier) folder.
 
-### Temporary workaround
-
-Due to a [pending PR](https://github.com/hyperledger/firefly-common/pull/58), please use the following workaround to get the enhancement with the dependency `firefly-common`:
-
-- checkout the branch `text-plain` of the repository [https://github.com/kaleido-io/firefly-common](https://github.com/kaleido-io/firefly-common), as a subfolder in the `verifier` folder. The resulting folder structure should look like this:
-
-```
-kaleido-iden3-samples
-  \_ verifier
-      \_ firefly-common
-      \_ cmd
-      \_ internal
-      \_ go.mod
-      \_ main.go
-```
-
 Build the server binary:
 
 ```console
