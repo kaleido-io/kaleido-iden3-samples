@@ -197,6 +197,10 @@ Go to the [holder/wallet](/v2/holder/wallet) folder.
 $ npm i
 ```
 
+### Configure the wallet
+
+Update the wallet config file `v2/holder/wallet/lib/config.js` to match the values for the target blockchain node and the state contract address.
+
 ### Initialize the state contract
 
 Due to a current limitation, the state contract won't function properly, until it has been primed with at least one identity state.
