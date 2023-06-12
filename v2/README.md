@@ -70,6 +70,8 @@ The issuer server is made up of a number of microservices:
 
 Checkout the `1.0.1` tag of the issuer server implementation from [https://github.com/0xPolygonID/sh-id-platform](https://github.com/0xPolygonID/sh-id-platform).
 
+Checkout the tag `v1.0.0`.
+
 To build the docker image on an `arm` architecture machine, such as MacBook m1, modify the `Makefile` to use the `Dockerfile-arm` for the docker build:
 
 ```
