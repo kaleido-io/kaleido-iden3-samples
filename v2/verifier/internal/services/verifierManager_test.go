@@ -26,7 +26,7 @@ const ProofRequest = `{
     "scope": [
       {
         "id": 316390273,
-        "circuit_id": "credentialAtomicQuerySig",
+        "circuitId": "credentialAtomicQuerySigV2",
         "proof": {
           "pi_a": [
             "1367349194085033796347949745269671531925694878878703944754290105947522943152",
@@ -144,6 +144,7 @@ func TestConstructor(t *testing.T) {
 	err := ffconfig.ReadConfig("iden3.verifier", cfgFile)
 	assert.NoError(t, err)
 	output, _ := json.MarshalIndent(ffconfig.GetConfig(), "", "  ")
+	ffconfig.Set("iden3.verificationKeysDir", path.Join(wdir, "../../pkg/circuits"))
 	fmt.Printf("Config: %s\n", string(output))
 	newInst, err := NewManager(context.Background())
 	assert.NoError(t, err)
@@ -184,10 +185,10 @@ func TestGetChallenge(t *testing.T) {
 		Type: "AgeCredential",
 	}
 	msg, _ := vm.CreateChallenge(context.Background(), query)
-	status := vm.GetChallenge(context.Background(), msg.ThreadID)
+	status, _ := vm.GetChallenge(context.Background(), msg.ThreadID)
 	assert.NotEmpty(t, status)
 	assert.Equal(t, false, status.Verified)
-	assert.Equal(t, msg, status.Message)
+	assert.Equal(t, msg.ThreadID, status.ID)
 }
 
 func TestVerifyNonExistentRequest(t *testing.T) {
