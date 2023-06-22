@@ -14,6 +14,7 @@ RUN apk add --no-cache libstdc++ gcompat libgomp
 
 WORKDIR /service
 COPY --from=builder /service/verifier /usr/local/bin
+COPY --from=builder /service/api /service/api
 COPY --from=builder /service/pkg/circuits /service/pkg/circuits
 COPY --from=builder "/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/linux-amd64/libwasmer.so" \
   "/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/linux-amd64/libwasmer.so"
