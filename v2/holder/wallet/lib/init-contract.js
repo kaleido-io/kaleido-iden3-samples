@@ -1,4 +1,3 @@
-const http = require('http');
 const {
   CredentialWallet,
   IdentityWallet,
@@ -17,16 +16,14 @@ const {
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { Wallet } = require('@ethersproject/wallet');
 const nock = require('nock');
-const { IdentityManager } = require('./identity');
 const { initCircuitStorage } = require('./util');
 const config = require('./config');
 
 // This is a workaround.
 // The State contract has a bug where it doesn't work properly if the GIST data is empty,
 // prime a new contract with some states for a dummy credential to allow it to work properly
-async function initializeStateContract() {
-  let conf = Object.assign({}, defaultEthConnectionConfig);
-  Object.assign(conf, config['kaleido']);
+async function initializeStateContract(network) {
+  const conf = Object.assign({}, defaultEthConnectionConfig, config[network]);
 
   const memoryKeyStore = new InMemoryPrivateKeyStore();
   const bjjProvider = new BjjProvider(KmsKeyType.BabyJubJub, memoryKeyStore);
