@@ -158,18 +158,20 @@ Build the server binary:
 $ make build
 ```
 
-Create a configuration file with the following content:
+Create a configuration file with the following content. Be sure to fill out the
+information in the brackets (`<>`) and fill out `ethContractAddress` and `self`
+with information obtained from previous sections.
 
 ```yaml
 api:
   address: 0.0.0.0
   publicURL: http://localhost:8000
 iden3:
-  verificationKeysDir: /kaleido-iden3-samples/v2/verifier/pkg/circuits
-  ethUrl: https://u0abcdefgh:B4_qAkLQA5XuGMbla3L4EK2hn8ahsQrdO-UYsF9d6xk@u0nabcdef4-u0ghijklms-rpc.us0-aws.kaleido.io
+  verificationKeysDir: <your path to parent folder>/kaleido-iden3-samples/v2/verifier/pkg/circuits
+  ethUrl: <full URL to a Kaleido node RPC endpoint, including app creds>
   ethContractAddress: '0xd94Dae61E4A337C526527a79BB222f67C2fB6B81'
   publicHost: http://localhost:8000
-  self: did:iden3:tTjhYsRM2B6fbbsuQhubfPkQiUrGwYY6QEznBQxn6
+  self: did:iden3:tPEsstk9vxvKHt6jY1sHgRjPvDHG4hY9WykfXJxdY
 ```
 
 Launch the server:
@@ -301,7 +303,7 @@ curl 'localhost:3001/v1/did:iden3:tPEsstk9vxvKHt6jY1sHgRjPvDHG4hY9WykfXJxdY/clai
     "birthday": 19960424,
     "documentType": 2
   },
-  "expiration": 1680087709
+  "expiration": 1910106487
 }'
 
 {
@@ -452,17 +454,17 @@ $ node -r node-localstorage/register index.js --command respond-to-challenge --q
 Initialing SQLite DB
 Respond to challenge
 {
-  "id": "63f9d6d6-5c7e-4fad-bdb6-3a8f5a4dfadf",
+  "id": "3f0e0882-60da-4eda-baf3-79476402d6f5",
   "typ": "application/iden3comm-plain-json",
   "type": "https://iden3-communication.io/authorization/1.0/request",
-  "thid": "63f9d6d6-5c7e-4fad-bdb6-3a8f5a4dfadf",
+  "thid": "3f0e0882-60da-4eda-baf3-79476402d6f5",
   "body": {
-    "callbackUrl": "http://localhost:8000/api/v1/verify?threadId=63f9d6d6-5c7e-4fad-bdb6-3a8f5a4dfadf",
+    "callbackUrl": "http://localhost:8000/api/v1/verify?threadId=3f0e0882-60da-4eda-baf3-79476402d6f5",
     "reason": "challenge",
-    "message": "3192335643",
+    "message": "3206975992",
     "scope": [
       {
-        "id": 3192335643,
+        "id": 3206975992,
         "circuitId": "credentialAtomicQuerySigV2",
         "optional": true,
         "query": {
@@ -501,7 +503,7 @@ eyJhbGciOiJncm90aDE2IiwiY2lyY3VpdElkIjoiYXV0aFYyIiwiY3JpdCI6WyJjaXJjdWl0SWQiXSwi
   from: 'did:iden3:tUGcefebfyaMiWY12yCKAJ3nxSncA8LBHnamP8TS5',
   to: 'did:iden3:tTjhYsRM2B6fbbsuQhubfPkQiUrGwYY6QEznBQxn6'
 }
-Sending the challenge response to callback URL: http://localhost:8000/api/v1/verify?threadId=63f9d6d6-5c7e-4fad-bdb6-3a8f5a4dfadf
+Sending the challenge response to callback URL: http://localhost:8000/api/v1/verify?threadId=3f0e0882-60da-4eda-baf3-79476402d6f5
 Success response from the verifier server: {"status":200,"message":true}
 Done!
 ```
