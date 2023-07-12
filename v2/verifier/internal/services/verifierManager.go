@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -139,6 +140,10 @@ func (m *verifierManager) VerifyProof(ctx context.Context, message *protocol.Aut
 	if request == nil {
 		return false, fmt.Errorf("the Authorization Request %s does not exist", threadId)
 	}
+
+	bytes, _ := json.MarshalIndent(message, "", "  ")
+	fmt.Println(string(bytes))
+
 	err := m.verifier.VerifyAuthResponse(ctx, *message, *request.Message)
 	if err != nil {
 		return false, err
