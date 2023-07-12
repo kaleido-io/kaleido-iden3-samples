@@ -7,9 +7,9 @@ const { scanQR } = require('./util');
 const { initPackageManager } = require('./util');
 
 class ProofManager {
-  constructor(db) {
+  constructor(db, network) {
     this.db = db;
-    this.credmgr = new CredentialManager(db);
+    this.credmgr = new CredentialManager(db, network);
   }
 
   async init() {

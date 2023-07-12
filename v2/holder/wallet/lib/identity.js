@@ -9,9 +9,11 @@ const { FSPrivateKeyStore } = require('./extensions/keystore');
 const config = require('./config');
 
 class IdentityManager {
-  constructor(db, network = 'kaleido') {
+  constructor(db, network) {
     this.db = db;
+    this.network = network;
     this.config = config[network];
+    // TODO: can get provider and state contract from this.dataStorage.states
     this.provider = new JsonRpcProvider(this.config.url);
     this.stateContract = new Contract(this.config.contractAddress, abi, this.provider);
   }
@@ -22,7 +24,7 @@ class IdentityManager {
     const kms = new KMS();
     kms.registerKeyProvider(KmsKeyType.BabyJubJub, bjjProvider);
 
-    this.dataStorage = await initDataStorage(this.db);
+    this.dataStorage = await initDataStorage(this.db, this.network);
     this.credentialWallet = new CredentialWallet(this.dataStorage);
     this.wallet = new IdentityWallet(kms, this.dataStorage, this.credentialWallet);
 

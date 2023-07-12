@@ -23,11 +23,10 @@ const jsQR = require('jsqr');
 const config = require('./config');
 const { CredentialsDataSource, IdentitiesDataSource, ProfilesDataSource } = require('./extensions/storage');
 
-async function initDataStorage(db, network = 'kaleido') {
-  let conf = Object.assign({}, defaultEthConnectionConfig);
-  Object.assign(conf, config[network]);
+async function initDataStorage(db, network) {
+  const conf = Object.assign({}, defaultEthConnectionConfig, config[network]);
 
-  var dataStorage = {
+  const dataStorage = {
     credential: new CredentialStorage(new CredentialsDataSource(db)),
     identity: new IdentityStorage(new IdentitiesDataSource(db), new ProfilesDataSource(db)),
     mt: new MerkleTreeLocalStorage(40),

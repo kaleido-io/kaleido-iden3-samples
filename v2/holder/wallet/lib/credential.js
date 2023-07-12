@@ -5,9 +5,9 @@ const { IdentityManager } = require('./identity');
 const { scanQR, initPackageManager } = require('./util');
 
 class CredentialManager {
-  constructor(db) {
+  constructor(db, network) {
     this.db = db;
-    this.idmgr = new IdentityManager(db);
+    this.idmgr = new IdentityManager(db, network);
   }
 
   async init() {
