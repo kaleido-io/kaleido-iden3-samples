@@ -5,8 +5,7 @@ info:
     Built on the Polygon iden3 technology
   version: 0.1.0
 servers:
-  - url: http://locahost:3000
-    description: Localhost
+  - url: https://verifierapi.didservice.eap.labs.kaleido-demos.com/api/v1
 paths:
   /challenges:
     post:
