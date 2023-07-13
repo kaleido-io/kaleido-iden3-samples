@@ -56,12 +56,12 @@ type verifierManager struct {
 	requestCache map[string]*AuthorizationRequestMessageWithStatus
 }
 
-func NewManager(ctx context.Context) (vm VerifierManager, err error) {
+func NewManager(ctx context.Context, url, contract string) (vm VerifierManager, err error) {
 	schemaLoader := &loaders.DefaultSchemaLoader{}
 	verificationKeyLoader := &loaders.FSKeyLoader{
 		Dir: config.Iden3Config.GetString(config.Iden3CircuitKeysDir),
 	}
-	ethResolver := state.NewETHResolver(config.Iden3Config.GetString(config.Iden3EthUrl), config.Iden3Config.GetString(config.Iden3EthContractAddress))
+	ethResolver := state.NewETHResolver(url, contract)
 	ethStateResolvers := map[string]pubsignals.StateResolver{
 		// until the go-iden3-core is enhanced to support custom blockchain and network names,
 		// we'll just use "" for both names
