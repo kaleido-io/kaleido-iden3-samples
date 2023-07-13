@@ -1,1 +1,5 @@
 iden3
+
+v2/issuer/.env-ui
+v2/issuer/.env-api
+v2/issuer/.env-issuer
