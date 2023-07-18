@@ -1,5 +1,7 @@
 iden3
+holder/wallet/scratch
+.DS_Store
 
-v2/issuer/.env-ui
-v2/issuer/.env-api
-v2/issuer/.env-issuer
+issuer/.env-ui
+issuer/.env-api
+issuer/.env-issuer
