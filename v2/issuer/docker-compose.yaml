@@ -33,7 +33,7 @@ services:
       retries: 5
 
   vault:
-    image: hashicorp/vault:latest
+    image: vault:1.13.2
     volumes:
       - ~/.vault/policies:/vault/policies
       - ~/.vault/data:/vault/data
@@ -42,7 +42,7 @@ services:
       - ./config:/vault/config
       - ./scripts:/vault/scripts
     ports:
-      - 8201:8200
+      - 8200:8200
     environment:
       - VAULT_ADDR=http://0.0.0.0:8200
       - VAULT_API_ADDR=http://0.0.0.0:8200
