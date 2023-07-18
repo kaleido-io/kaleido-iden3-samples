@@ -15,7 +15,7 @@ The setup includes 4 components:
 
 ## Deploy the state contract
 
-Checkout the `v1.0.0-beta.0` tag of the contracts repository [https://github.com/iden3/contracts](https://github.com/iden3/contracts)
+Checkout the `6fd5f6d5b10be8d8d075206b3f5b43625971e924` commit hash of the contracts repository [https://github.com/iden3/contracts](https://github.com/iden3/contracts)
 
 Add a `kaleido` network spec to the hardhat configuration file `hardhat.config.ts`:
 
