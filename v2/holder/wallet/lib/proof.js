@@ -51,8 +51,9 @@ class ProofManager {
 
     const authHandler = new AuthHandler(packageManager, proofService, this.credmgr.wallet);
     const { token, authResponse } = await authHandler.handleAuthorizationRequestForGenesisDID(myDID, authRawRequest);
-    console.log(token);
-    console.log(authResponse);
+
+    console.log(`====> Proof payload with auth envelope:\n${token}`);
+    console.log(`====> Proof payload:\n${JSON.stringify(authResponse, null, 2)}`);
     const url = challenge.body.callbackUrl;
     console.log(`Sending the challenge response to callback URL: ${url}`);
     try {

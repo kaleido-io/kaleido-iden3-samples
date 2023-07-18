@@ -59,7 +59,7 @@ class CredentialManager {
     const { packageManager } = await initPackageManager(this.identityWallet, this.wallet, this.dataStorage.states);
     const fetchHandler = new FetchHandler(packageManager);
     const result = await fetchHandler.handleCredentialOffer(myDID, msgBytes);
-    console.log(result);
+    console.log(JSON.stringify(result, null, 2));
     await this.wallet.save(result[0]);
   }
 }

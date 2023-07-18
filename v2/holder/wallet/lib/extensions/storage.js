@@ -1,3 +1,7 @@
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+const argv = yargs(hideBin(process.argv)).argv;
+
 class SQliteDataSource {
   constructor(db, tableName) {
     this.db = db;
@@ -5,7 +9,9 @@ class SQliteDataSource {
   }
 
   async save(key, value, keyName = 'id') {
-    console.log(value);
+    if (isDebug()) {
+      console.log(JSON.stringify(value, null, 2));
+    }
     const result = await this.db.get(`SELECT * FROM ${this.tableName} WHERE ${keyName} = ?`, key);
     if (!result) {
       console.log(`Inserting new entry to table ${this.tableName}`);
@@ -88,6 +94,10 @@ class CredentialsDataSource extends SQliteDataSource {
     }
     return result;
   }
+}
+
+function isDebug() {
+  return argv.debug;
 }
 
 module.exports = {

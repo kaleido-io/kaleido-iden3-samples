@@ -1,0 +1,168 @@
+openapi: 3.0.2
+info:
+  title: Kaleido Decentralized Identity Service - Verifier
+  description: |
+    Built on the Polygon iden3 technology
+  version: 0.1.0
+servers:
+  - url: https://verifierapi.didservice.eap.labs.kaleido-demos.com/api/v1
+paths:
+  /challenges:
+    post:
+      description: Generate Challenge
+      operationId: CreateChallenge
+      parameters:
+        - name: Request-Timeout
+          in: header
+          description: Server-side request timeout (milliseconds, or set a custom suffix like 10s)
+          schema:
+            type: string
+            default: 2m0s
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                allowedIssuers:
+                  type: array
+                  items:
+                    type: string
+                context:
+                  type: string
+                credentialSubject:
+                  type: object
+                type:
+                  type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  body:
+                    type: object
+                    properties:
+                      callbackUrl:
+                        type: string
+                      did_doc: {}
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      scope:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            circuitId:
+                              type: string
+                            id:
+                              type: integer
+                              minimum: 0
+                              maximum: 4.294967295e+09
+                            optional:
+                              type: boolean
+                            query:
+                              type: object
+                  from:
+                    type: string
+                  id:
+                    type: string
+                  thid:
+                    type: string
+                  to:
+                    type: string
+                  typ:
+                    type: string
+                  type:
+                    type: string
+        default:
+          description: ''
+  /challenges/{threadId}:
+    get:
+      description: Get Challenge Status
+      operationId: ChallengeStatus
+      parameters:
+        - name: threadId
+          in: path
+          description: threadId of a challenge message
+          required: true
+          schema:
+            type: string
+        - name: Request-Timeout
+          in: header
+          description: Server-side request timeout (milliseconds, or set a custom suffix like 10s)
+          schema:
+            type: string
+            default: 2m0s
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  verified:
+                    type: boolean
+        default:
+          description: ''
+  /verify:
+    post:
+      description: Verify Proof
+      operationId: Verify
+      parameters:
+        - name: threadId
+          in: query
+          description: Id of the credential challenge
+          schema:
+            type: string
+        - name: Request-Timeout
+          in: header
+          description: Server-side request timeout (milliseconds, or set a custom suffix like 10s)
+          schema:
+            type: string
+            default: 2m0s
+      requestBody:
+        content:
+          application/json: {}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        default:
+          description: ''
+  /status:
+    get:
+      description: Service Status
+      operationId: Status
+      parameters:
+        - name: Request-Timeout
+          in: header
+          description: Server-side request timeout (milliseconds, or set a custom suffix like 10s)
+          schema:
+            type: string
+            default: 2m0s
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        default:
+          description: ''
