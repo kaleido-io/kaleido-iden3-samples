@@ -12,6 +12,10 @@ const {
   EthStateStorage,
   ProofService,
   defaultEthConnectionConfig,
+  CredentialStatusType,
+  CredentialStatusResolverRegistry,
+  RHSResolver,
+  core,
 } = require('@0xpolygonid/js-sdk');
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { Wallet } = require('@ethersproject/wallet');
@@ -38,7 +42,13 @@ async function initializeStateContract(network) {
     states: new EthStateStorage(conf),
   };
 
-  const credWallet = new CredentialWallet(dataStorage);
+  const resolvers = new CredentialStatusResolverRegistry();
+  resolvers.register(
+    CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+    new RHSResolver(dataStorage.states)
+  );
+
+  const credWallet = new CredentialWallet(dataStorage, resolvers);
   const idWallet = new IdentityWallet(kms, dataStorage, credWallet);
   const proofService = new ProofService(idWallet, credWallet, circuitStorage, dataStorage.states);
 
@@ -58,16 +68,26 @@ async function initializeStateContract(network) {
   const seedPhraseUser = new TextEncoder().encode('seedseedseedseedseedseedseeduser');
 
   console.log('=> Creating temporary issuer identity');
-  const { did: issuerDID, credential: issuerAuthCredential } = await idWallet.createIdentity('http://mytestwallet.com/', {
+  const { did: issuerDID, credential: issuerAuthCredential } = await idWallet.createIdentity({
     method: 'iden3',
+    blockchain: core.Blockchain.NoChain,
+    networkId: core.NetworkId.NoNetwork,
     seed: seedPhraseIssuer,
-    rhsUrl,
+    revocationOpts: {
+      id: rhsUrl,
+      type: CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+    },
   });
   console.log('=> Creating temporary holder identity');
-  const { did: userDID, credential: cred } = await idWallet.createIdentity('http://mytestwallet.com/', {
+  const { did: userDID, credential: cred } = await idWallet.createIdentity({
     method: 'iden3',
+    blockchain: core.Blockchain.NoChain,
+    networkId: core.NetworkId.NoNetwork,
     seed: seedPhraseUser,
-    rhsUrl,
+    revocationOpts: {
+      id: rhsUrl,
+      type: CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+    },
   });
   console.log('=> Issuing a credential');
   const claimReq = {
@@ -79,9 +99,13 @@ async function initializeStateContract(network) {
       documentType: 99,
     },
     expiration: 1693526400,
-    revNonce: 0,
+    revocationOpts: {
+      id: rhsUrl,
+      type: CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+      nonce: 0,
+    }
   };
-  const credential = await idWallet.issueCredential(issuerDID, claimReq, 'http://mytestwallet.com/', { withRHS: rhsUrl });
+  const credential = await idWallet.issueCredential(issuerDID, claimReq);
   console.log('=> Saving the new credential to the credential wallet');
   await credWallet.save(credential);
   console.log('=> Adding the new credential to the merkle tree');

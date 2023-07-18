@@ -1,4 +1,4 @@
-const { BjjProvider, core, IdentityWallet, CredentialWallet, KMS, KmsKeyType, ProofService } = require('@0xpolygonid/js-sdk');
+const { BjjProvider, core, IdentityWallet, CredentialWallet, KMS, KmsKeyType, ProofService, CredentialStatusResolverRegistry, CredentialStatusType, RHSResolver, IssuerResolver } = require('@0xpolygonid/js-sdk');
 const { DID } = require('@iden3/js-iden3-core');
 const abi = require('@0xpolygonid/js-sdk/dist/cjs/storage/blockchain/state-abi.json');
 const { Contract } = require('@ethersproject/contracts');
@@ -25,7 +25,7 @@ class IdentityManager {
     kms.registerKeyProvider(KmsKeyType.BabyJubJub, bjjProvider);
 
     this.dataStorage = await initDataStorage(this.db, this.network);
-    this.credentialWallet = new CredentialWallet(this.dataStorage);
+    this.credentialWallet = await this.initCredentialWallet();
     this.wallet = new IdentityWallet(kms, this.dataStorage, this.credentialWallet);
 
     const circuitStorage = await initCircuitStorage();
@@ -33,15 +33,15 @@ class IdentityManager {
   }
 
   async createIdentity() {
-    const rhsUrl = 'https://rhs-staging.polygonid.me';
-    const { did: userDID, credential: authCredential } = await this.wallet.createIdentity(
-      'http://mytestwallet.com/', // this is url that will be a part of auth bjj credential identifier
-      {
-        method: core.DidMethod.Iden3,
-        rhsUrl,
+    const { did: userDID, credential: authCredential } = await this.wallet.createIdentity({
+      method: core.DidMethod.Iden3,
+      blockchain: core.Blockchain.NoChain,
+      networkId: core.NetworkId.NoNetwork,
+      revocationOpts: {
+        id: 'https://rhs-staging.polygonid.me',
+        type: CredentialStatusType.Iden3ReverseSparseMerkleTreeProof
       }
-    );
-
+    });
     console.log('=============== user did ===============');
     console.log(userDID.toString());
     return { did: userDID, authCredential };
@@ -65,6 +65,19 @@ class IdentityManager {
     const signer = new Wallet(this.config.privateKey, this.provider);
     const txId = await this.proofService.transitState(did, res.oldTreeState, true, this.dataStorage.states, signer);
     console.log(`Transaction ID: ${txId}`);
+  }
+
+  async initCredentialWallet() {
+    const resolvers = new CredentialStatusResolverRegistry();
+    resolvers.register(
+      CredentialStatusType.SparseMerkleTreeProof,
+      new IssuerResolver()
+    );
+    resolvers.register(
+      CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+      new RHSResolver(this.dataStorage.states)
+    );
+    return new CredentialWallet(this.dataStorage, resolvers);
   }
 }
 

@@ -17,7 +17,7 @@ class FSPrivateKeyStore extends AbstractPrivateKeyStore {
     return privateKey.toString();
   }
 
-  async import(args) {
+  async importKey(args) {
     const keyfile = join(this._keydir, `${args.alias}.key`);
     await writeFile(keyfile, args.key);
   }
