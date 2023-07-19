@@ -1,6 +1,6 @@
 ## Setting up Go
 ARG BUILD_VERSION
-FROM golang:1.19.0 as builder
+FROM golang:1.20.5 as builder
 
 COPY . /service
 
@@ -16,7 +16,7 @@ WORKDIR /service
 COPY --from=builder /service/verifier /usr/local/bin
 COPY --from=builder /service/api /service/api
 COPY --from=builder /service/pkg/circuits /service/pkg/circuits
-COPY --from=builder "/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/linux-amd64/libwasmer.so" \
-  "/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/linux-amd64/libwasmer.so"
+COPY --from=builder "/go/pkg/mod/github.com/iden3/wasmer-go@v0.0.1/wasmer/packaged/lib/linux-amd64/libwasmer.so" \
+  "/go/pkg/mod/github.com/iden3/wasmer-go@v0.0.1/wasmer/packaged/lib/linux-amd64/libwasmer.so"
 
 ENTRYPOINT [ "verifier" ]
