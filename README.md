@@ -335,10 +335,15 @@ curl 'localhost:3001/v1/did:iden3:tVE7RF655rj8Ws4rYCF2E32d46q575Gq2GHi2aKYf/clai
 
 To download the credential to the wallet, first generate a QR code for the **credential offer** object that the issuer service uses to interact with the wallet. The QR code encodes the object that contains the ID of the credential. The wallet must authenticate itself with the issuer service, by demonstrating its possession of the private key corresponding to the holder DID, in order to obtain the credential itself.
 
-First call the issuer API to obtain the credential offer object and save the output into a qrcode:
+First call the issuer API to obtain the credential offer object and save the output into a qrcode using the `qrencode` tool:
 
 ```
 curl 'localhost:3001/v1/did:iden3:tVE7RF655rj8Ws4rYCF2E32d46q575Gq2GHi2aKYf/claims/797c21b7-2197-11ee-9ce7-0242ac120005/qrcode' -H 'Authorization: Basic dXNlci1pc3N1ZXI6cGFzc3dvcmQtaXNzdWVy' | qrencode -o qrcode.png
+```
+
+You can find information regarding `qrencode` [here](https://fukuchi.org/works/qrencode/index.html.en). You can install on macOS systems using `brew`:
+```
+brew install qrencode
 ```
 
 Use the `fetch-credential` command to download the credential from the issuer service. The wallet sample code will generate an authentication proof (for the `authV2` circuit) and send it to the endpoint contained in the credential offer object above (`http://localhost:3001/v1/agent` in this case). The issuer service verifies the proof to authenticate the wallet, and returns the promised credential identified by the `body.credentials[0].id` value.
@@ -445,7 +450,7 @@ curl 'http://localhost:8000/api/v1/challenges' -H 'Content-Type: application/jso
 }' | qrencode -o challenge.png
 ```
 
-If you want to use selective disclosure, use the following endpoint instead:
+If you want to use selective disclosure, use the following payload instead (omitting the condition inside the `birthday` property value signals the verifier's desire for selective disclosure rather than zero knowledge proof):
 
 ```
 curl 'http://localhost:8000/api/v1/challenges' -H 'Content-Type: application/json' \
