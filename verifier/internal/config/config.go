@@ -8,6 +8,7 @@ import (
 var APIConfig = ffconfig.RootSection("api")
 var CORSConfig = ffconfig.RootSection("cors")
 var Iden3Config = ffconfig.RootSection("iden3")
+var DatabaseConfig = ffconfig.RootSection("database")
 var APIRequestTimeout = "requestTimeout"
 var APIRequestTimeoutMax = "requestMaxTimeout"
 var Iden3CircuitKeysDir = "verificationKeysDir"
@@ -15,6 +16,7 @@ var Iden3EthUrl = "ethUrl"
 var Iden3EthContractAddress = "ethContractAddress"
 var Iden3ServerHostname = "publicHost"
 var Iden3Self = "self"
+var DatabasePath = "databasePath"
 
 func InitConfig() {
 	httpserver.InitHTTPConfig(APIConfig, 8000)

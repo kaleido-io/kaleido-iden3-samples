@@ -15,35 +15,14 @@ import (
 	"github.com/iden3/go-iden3-auth/state"
 	"github.com/iden3/iden3comm/protocol"
 	"github.com/kaleido-io/kaleido-iden3-verifier/internal/config"
+  "github.com/kaleido-io/kaleido-iden3-verifier/internal/messages"
+	"github.com/kaleido-io/kaleido-iden3-verifier/internal/kvstore"
 )
-
-const (
-	CredentialAtomicQuerySigV2 = "credentialAtomicQuerySigV2"
-)
-
-type Predicate map[string]interface{}
-
-type Query struct {
-	AllowedIssuers    *[]string             `json:"allowedIssuers"`
-	CredentialSubject *map[string]Predicate `json:"credentialSubject"`
-	Context           string                `json:"context"`
-	Type              string                `json:"type"`
-}
-
-type AuthorizationRequestMessageWithStatus struct {
-	Verified bool                                  `json:"verified"`
-	Message  *protocol.AuthorizationRequestMessage `json:"message"`
-}
-
-type ChallengeStatus struct {
-	ID       string `json:"id"`
-	Verified bool   `json:"verified"`
-}
 
 type VerifierManager interface {
 	Status(context.Context) (*OverallStatus, error)
-	CreateChallenge(context.Context, *Query) (*protocol.AuthorizationRequestMessage, error)
-	GetChallenge(context.Context, string) (*ChallengeStatus, error)
+	CreateChallenge(context.Context, *messages.Query) (*protocol.AuthorizationRequestMessage, error)
+	GetChallenge(context.Context, string) (*messages.ChallengeStatus, error)
 	VerifyProof(context.Context, *protocol.AuthorizationResponseMessage) (bool, error)
 	VerifyJWZ(context.Context, string, string) (bool, error)
 }
@@ -52,10 +31,10 @@ type VerifierManager interface {
 // TODO: use a db for the request cache to track across server instances
 type verifierManager struct {
 	verifier     *auth.Verifier
-	requestCache map[string]*AuthorizationRequestMessageWithStatus
+  requestDB     kvstore.KVStore
 }
 
-func NewManager(ctx context.Context, url, contract string) (vm VerifierManager, err error) {
+func NewManager(ctx context.Context, url, contract string, dbPath string) (vm VerifierManager, err error) {
 	schemaLoader := &loaders.DefaultSchemaLoader{}
 	verificationKeyLoader := &loaders.FSKeyLoader{
 		Dir: config.Iden3Config.GetString(config.Iden3CircuitKeysDir),
@@ -68,9 +47,17 @@ func NewManager(ctx context.Context, url, contract string) (vm VerifierManager, 
 		"polygon:mumbai": ethResolver,
 	}
 	authInstance := auth.NewVerifier(verificationKeyLoader, schemaLoader, ethStateResolvers)
+
+
+  requestDB, err := kvstore.NewKVStore(dbPath)
+  if err != nil {
+    return nil, err
+  }
+
+
 	vm = &verifierManager{
 		verifier:     authInstance,
-		requestCache: make(map[string]*AuthorizationRequestMessageWithStatus),
+    requestDB:    requestDB,
 	}
 	return vm, nil
 }
@@ -83,7 +70,7 @@ func (m *verifierManager) Status(ctx context.Context) (s *OverallStatus, err err
 	return s, nil
 }
 
-func (m *verifierManager) CreateChallenge(ctx context.Context, query *Query) (*protocol.AuthorizationRequestMessage, error) {
+func (m *verifierManager) CreateChallenge(ctx context.Context, query *messages.Query) (*protocol.AuthorizationRequestMessage, error) {
 	req := protocol.ZeroKnowledgeProofRequest{}
 	id, err := getRandomUint32()
 	if err != nil {
