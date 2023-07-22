@@ -30,4 +30,6 @@ func InitConfig() {
 	Iden3Config.AddKnownKey(Iden3EthContractAddress, "")
 	Iden3Config.AddKnownKey(Iden3ServerHostname, "http://localhost:8000")
 	Iden3Config.AddKnownKey(Iden3Self, "")
+
+	DatabaseConfig.AddKnownKey(DatabasePath, "")
 }

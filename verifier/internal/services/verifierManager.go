@@ -15,8 +15,8 @@ import (
 	"github.com/iden3/go-iden3-auth/state"
 	"github.com/iden3/iden3comm/protocol"
 	"github.com/kaleido-io/kaleido-iden3-verifier/internal/config"
-  "github.com/kaleido-io/kaleido-iden3-verifier/internal/messages"
 	"github.com/kaleido-io/kaleido-iden3-verifier/internal/kvstore"
+	"github.com/kaleido-io/kaleido-iden3-verifier/internal/messages"
 )
 
 type VerifierManager interface {
@@ -30,8 +30,8 @@ type VerifierManager interface {
 // verifierManager has the core orchestration endpoints for the iden3 verifier
 // TODO: use a db for the request cache to track across server instances
 type verifierManager struct {
-	verifier     *auth.Verifier
-  requestDB     kvstore.KVStore
+	verifier  *auth.Verifier
+	requestDB kvstore.KVStore
 }
 
 func NewManager(ctx context.Context, url, contract string, dbPath string) (vm VerifierManager, err error) {
@@ -48,16 +48,14 @@ func NewManager(ctx context.Context, url, contract string, dbPath string) (vm Ve
 	}
 	authInstance := auth.NewVerifier(verificationKeyLoader, schemaLoader, ethStateResolvers)
 
-
-  requestDB, err := kvstore.NewKVStore(dbPath)
-  if err != nil {
-    return nil, err
-  }
-
+	requestDB, err := kvstore.NewKVStore(dbPath)
+	if err != nil {
+		return nil, err
+	}
 
 	vm = &verifierManager{
-		verifier:     authInstance,
-    requestDB:    requestDB,
+		verifier:  authInstance,
+		requestDB: requestDB,
 	}
 	return vm, nil
 }
@@ -103,18 +101,20 @@ func (m *verifierManager) CreateChallenge(ctx context.Context, query *messages.Q
 	values.Add("threadId", msg.ThreadID)
 	callbackUrl.RawQuery = values.Encode()
 	msg.Body.CallbackURL = callbackUrl.String()
-	m.requestCache[msg.ThreadID] = &AuthorizationRequestMessageWithStatus{
+
+	err = m.requestDB.Put(msg.ThreadID, messages.AuthorizationRequestMessageWithStatus{
 		Message: &msg,
-	}
-	return &msg, nil
+	})
+
+	return &msg, err
 }
 
-func (m *verifierManager) GetChallenge(ctx context.Context, requestId string) (*ChallengeStatus, error) {
-	req := m.requestCache[requestId]
-	if req == nil {
+func (m *verifierManager) GetChallenge(ctx context.Context, requestId string) (*messages.ChallengeStatus, error) {
+	req, err := m.requestDB.Get(requestId)
+	if err != nil {
 		return nil, fmt.Errorf("challenge by the id %s not found", requestId)
 	}
-	return &ChallengeStatus{
+	return &messages.ChallengeStatus{
 		ID:       requestId,
 		Verified: req.Verified,
 	}, nil
@@ -122,12 +122,12 @@ func (m *verifierManager) GetChallenge(ctx context.Context, requestId string) (*
 
 func (m *verifierManager) VerifyProof(ctx context.Context, message *protocol.AuthorizationResponseMessage) (bool, error) {
 	threadId := message.ThreadID
-	request := m.requestCache[threadId]
-	if request == nil {
+	request, err := m.requestDB.Get(threadId)
+	if err != nil {
 		return false, fmt.Errorf("the Authorization Request %s does not exist", threadId)
 	}
 
-	err := m.verifier.VerifyAuthResponse(ctx, *message, *request.Message)
+	err = m.verifier.VerifyAuthResponse(ctx, *message, *request.Message)
 	if err != nil {
 		return false, err
 	}
@@ -138,11 +138,11 @@ func (m *verifierManager) VerifyProof(ctx context.Context, message *protocol.Aut
 func (m *verifierManager) VerifyJWZ(ctx context.Context, jwz string, threadId string) (bool, error) {
 	// parse the thread ID from the jwz token
 
-	request := m.requestCache[threadId]
-	if request == nil {
+	request, err := m.requestDB.Get(threadId)
+	if err != nil {
 		return false, fmt.Errorf("the Authorization Request %s does not exist", threadId)
 	}
-	_, err := m.verifier.FullVerify(ctx, jwz, *request.Message)
+	_, err = m.verifier.FullVerify(ctx, jwz, *request.Message)
 	if err != nil {
 		return false, err
 	}

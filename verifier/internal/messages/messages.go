@@ -24,4 +24,3 @@ type ChallengeStatus struct {
 	ID       string `json:"id"`
 	Verified bool   `json:"verified"`
 }
-
