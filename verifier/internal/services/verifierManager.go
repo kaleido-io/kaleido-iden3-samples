@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -115,8 +116,9 @@ func (m *verifierManager) GetChallenge(ctx context.Context, requestId string) (*
 		return nil, fmt.Errorf("challenge by the id %s not found", requestId)
 	}
 	return &messages.ChallengeStatus{
-		ID:       requestId,
-		Verified: req.Verified,
+		ID:                     requestId,
+		Verified:               req.Verified,
+		VerifiablePresentation: req.VerifiablePresentation,
 	}, nil
 }
 
@@ -131,7 +133,11 @@ func (m *verifierManager) VerifyProof(ctx context.Context, message *protocol.Aut
 	if err != nil {
 		return false, err
 	}
-	request.Verified = true
+	(&request).Verified = true
+	err = m.requestDB.Put(threadId, request)
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -142,11 +148,21 @@ func (m *verifierManager) VerifyJWZ(ctx context.Context, jwz string, threadId st
 	if err != nil {
 		return false, fmt.Errorf("the Authorization Request %s does not exist", threadId)
 	}
-	_, err = m.verifier.FullVerify(ctx, jwz, *request.Message)
+	responseMsg, err := m.verifier.FullVerify(ctx, jwz, *request.Message)
 	if err != nil {
 		return false, err
 	}
-	request.Verified = true
+
+	vp, err := getVerifiablePresentation(responseMsg)
+	if vp != nil {
+		(&request).VerifiablePresentation = vp
+	}
+
+	(&request).Verified = true
+	err = m.requestDB.Put(threadId, request)
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -166,4 +182,17 @@ func getCallbackUrl() (*url.URL, error) {
 	}
 	fullUrl := url.JoinPath("api/v1/verify")
 	return fullUrl, nil
+}
+
+func getVerifiablePresentation(responseMsg *protocol.AuthorizationResponseMessage) (json.RawMessage, error) {
+  fmt.Printf("AuthResponse: %+v", responseMsg)
+	scope := responseMsg.Body.Scope
+	if len(scope) <= 0 {
+		return nil, fmt.Errorf("Scope not found in presentation")
+	}
+	vp := scope[0].VerifiablePresentation
+	if vp != nil {
+		return vp, nil
+	}
+	return nil, fmt.Errorf("Verifiable Presentation does not exist in this response")
 }

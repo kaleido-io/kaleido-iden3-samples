@@ -1,6 +1,9 @@
 package messages
 
-import "github.com/iden3/iden3comm/protocol"
+import (
+	"encoding/json"
+	"github.com/iden3/iden3comm/protocol"
+)
 
 const (
 	CredentialAtomicQuerySigV2 = "credentialAtomicQuerySigV2"
@@ -16,11 +19,13 @@ type Query struct {
 }
 
 type AuthorizationRequestMessageWithStatus struct {
-	Verified bool                                  `json:"verified"`
-	Message  *protocol.AuthorizationRequestMessage `json:"message"`
+	Verified               bool                                  `json:"verified"`
+	Message                *protocol.AuthorizationRequestMessage `json:"message"`
+	VerifiablePresentation json.RawMessage                       `json:"vp,omitempty"`
 }
 
 type ChallengeStatus struct {
-	ID       string `json:"id"`
-	Verified bool   `json:"verified"`
+	ID                     string          `json:"id"`
+	Verified               bool            `json:"verified"`
+	VerifiablePresentation json.RawMessage `json:"vp,omitempty"`
 }
