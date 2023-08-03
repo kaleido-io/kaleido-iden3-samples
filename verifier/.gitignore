@@ -6,6 +6,8 @@
 *.dylib
 iden3_verifier
 verifier
+verifierdb
+config.toml
 
 # Test binary, built with `go test -c`
 *.test

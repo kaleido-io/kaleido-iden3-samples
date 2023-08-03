@@ -6,6 +6,7 @@ import (
 
 	"github.com/hyperledger/firefly-common/pkg/ffapi"
 	"github.com/iden3/iden3comm/protocol"
+	"github.com/kaleido-io/kaleido-iden3-verifier/internal/messages"
 	"github.com/kaleido-io/kaleido-iden3-verifier/internal/services"
 )
 
@@ -42,13 +43,13 @@ var CreateChallengeRoute = &ffapi.Route{
 	Description:     "Generate a challenge message",
 	PathParams:      nil,
 	QueryParams:     nil,
-	JSONInputValue:  func() interface{} { return &services.Query{} },
+	JSONInputValue:  func() interface{} { return &messages.Query{} },
 	JSONOutputValue: func() interface{} { return &protocol.AuthorizationRequestMessage{} },
 	JSONOutputCodes: []int{http.StatusOK},
 	Extensions: &VerifierExtensions{
 		Handle: func(r *ffapi.APIRequest, sr *VerifierRequest) (output interface{}, err error) {
 			// For liveness, as long as we are happy with the fundamentals, all is ok
-			return sr.vm.CreateChallenge(r.Req.Context(), r.Input.(*services.Query))
+			return sr.vm.CreateChallenge(r.Req.Context(), r.Input.(*messages.Query))
 		},
 	},
 }
@@ -63,7 +64,7 @@ var ChallengeStatusRoute = &ffapi.Route{
 	},
 	QueryParams:     nil,
 	JSONInputValue:  nil,
-	JSONOutputValue: func() interface{} { return &services.ChallengeStatus{} },
+	JSONOutputValue: func() interface{} { return &messages.ChallengeStatus{} },
 	JSONOutputCodes: []int{http.StatusOK},
 	Extensions: &VerifierExtensions{
 		Handle: func(r *ffapi.APIRequest, sr *VerifierRequest) (output interface{}, err error) {

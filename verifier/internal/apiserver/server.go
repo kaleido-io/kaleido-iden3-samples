@@ -34,7 +34,7 @@ type apiServer struct {
 }
 
 func NewAPIServer(ctx context.Context) (Server, error) {
-	vm, err := services.NewManager(ctx, config.Iden3Config.GetString(config.Iden3EthUrl), config.Iden3Config.GetString(config.Iden3EthContractAddress))
+	vm, err := services.NewManager(ctx, config.Iden3Config.GetString(config.Iden3EthUrl), config.Iden3Config.GetString(config.Iden3EthContractAddress), config.DatabaseConfig.GetString(config.DatabasePath))
 	if err != nil {
 		return nil, err
 	}
