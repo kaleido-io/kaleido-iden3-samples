@@ -1,5 +1,6 @@
-const { join } = require('path');
+const fs = require('fs')
 const os = require('os');
+const { join } = require('path');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const yargs = require('yargs/yargs');
@@ -11,9 +12,10 @@ const { initializeStateContract } = require('./lib/init-contract');
 const { ProofManager } = require('./lib/proof');
 
 async function initDB() {
-  const homedir = os.homedir();
-  const dbpath = join(homedir, 'iden3/wallet/db.sqlite');
+  const walletPath = join(os.homedir(), 'iden3/wallet');
+  fs.mkdirSync(walletPath, { recursive: true });
 
+  const dbpath = join(walletPath, 'db.sqlite');
   const db = await open({
     filename: dbpath,
     driver: sqlite3.Database,
