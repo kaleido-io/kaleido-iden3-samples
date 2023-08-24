@@ -140,7 +140,9 @@ docker compose up -d platform
 Finally, we send the following HTTP request to the `platform` service to create an identity in the issuer service (with basic auth using `user-issuer:password-issuer`):
 
 ```
-curl 'localhost:3001/v1/identities' -H 'Authorization: Basic dXNlci1pc3N1ZXI6cGFzc3dvcmQtaXNzdWVy' -H 'Content-Type: application/json' \
+ISSUER_API_URL="http://localhost:3001/v1"
+ISSUER_API_CREDS="user-issuer:password-issuer"
+curl "$ISSUER_API_URL/identities" -u "$ISSUER_API_CREDS" -H 'Content-Type: application/json' \
 --data-raw '{
     "didMetadata": {
         "method": "iden3"
@@ -317,7 +319,7 @@ Call the following issuer service API to issue a verifiable credential for the h
 - holder: `did:iden3:tNdgTFxGLkPXhXtppLZzsX7YJmE88aMbkPZusa3zH`
 
 ```
-curl 'localhost:3001/v1/did:iden3:tVE7RF655rj8Ws4rYCF2E32d46q575Gq2GHi2aKYf/claims' -H 'Authorization: Basic dXNlci1pc3N1ZXI6cGFzc3dvcmQtaXNzdWVy' --data-raw '{
+curl "$ISSUER_API_URL/did:iden3:tVE7RF655rj8Ws4rYCF2E32d46q575Gq2GHi2aKYf/claims" -u "$ISSUER_API_CREDS" --data-raw '{
   "credentialSchema": "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential-v3.json",
   "type": "KYCAgeCredential",
   "credentialSubject": {
@@ -338,7 +340,7 @@ To download the credential to the wallet, first generate a QR code for the **cre
 First call the issuer API to obtain the credential offer object and save the output into a qrcode using the `qrencode` tool:
 
 ```
-curl 'localhost:3001/v1/did:iden3:tVE7RF655rj8Ws4rYCF2E32d46q575Gq2GHi2aKYf/claims/797c21b7-2197-11ee-9ce7-0242ac120005/qrcode' -H 'Authorization: Basic dXNlci1pc3N1ZXI6cGFzc3dvcmQtaXNzdWVy' | qrencode -o qrcode.png
+curl "$ISSUER_API_URL/did:iden3:tVE7RF655rj8Ws4rYCF2E32d46q575Gq2GHi2aKYf/claims/797c21b7-2197-11ee-9ce7-0242ac120005/qrcode" -u "$ISSUER_API_CREDS" | qrencode -o qrcode.png
 ```
 
 You can find information regarding `qrencode` [here](https://fukuchi.org/works/qrencode/index.html.en). You can install on macOS systems using `brew`:
@@ -438,7 +440,8 @@ Now we can use the verifiable credential obtained above, to create verifiable pr
 A verifier first presents a challenge. Call the following endpoint on the verifier service to obtain the challenge object:
 
 ```
-curl 'http://localhost:8000/api/v1/challenges' -H 'Content-Type: application/json' \
+VERIFIER_API_URL="http://localhost:8000/api/v1"
+curl "$VERIFIER_API_URL/challenges" -H 'Content-Type: application/json' \
 --data-raw '{
     "credentialSubject": {
         "birthday": {
@@ -453,7 +456,7 @@ curl 'http://localhost:8000/api/v1/challenges' -H 'Content-Type: application/jso
 If you want to use selective disclosure, use the following payload instead (omitting the condition inside the `birthday` property value signals the verifier's desire for selective disclosure rather than zero knowledge proof):
 
 ```
-curl 'http://localhost:8000/api/v1/challenges' -H 'Content-Type: application/json' \
+curl "$VERIFIER_API_URL/challenges" -H 'Content-Type: application/json' \
 --data-raw '{
     "credentialSubject": {
         "birthday": {}
